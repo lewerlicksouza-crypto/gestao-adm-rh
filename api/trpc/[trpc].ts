@@ -1,15 +1,12 @@
-import { createHTTPHandler } from "@trpc/server/adapters/standalone";
-import { appRouter } from "../../server/routers";
-import { createContext } from "../../server/context";
+import { appRouter } from "../../server/routers.js";
+import { createContext } from "../../server/context.js";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
-const handler = createHTTPHandler({
-  router: appRouter,
-  createContext,
-  onError({ path, error }) {
-    console.error(`tRPC failed on ${path ?? "unknown-path"}:`, error);
-  },
-});
-
-export default async function handlerWrapper(req: any, res: any) {
-  return handler(req, res);
+export default function handler(req: any, res: any) {
+  return fetchRequestHandler({
+    endpoint: "/api/trpc",
+    req,
+    router: appRouter,
+    createContext,
+  });
 }
