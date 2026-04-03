@@ -1,5 +1,3 @@
-import type { IncomingMessage, ServerResponse } from "http";
-
 export type AppUser = {
   id: number;
   name: string;
@@ -8,14 +6,14 @@ export type AppUser = {
 } | null;
 
 export type TrpcContext = {
-  req: IncomingMessage;
-  res: ServerResponse;
+  req: any;
+  res: any;
   user: AppUser;
 };
 
 export async function createContext(opts: {
-  req: IncomingMessage;
-  res: ServerResponse;
+  req: any;
+  res: any;
 }): Promise<TrpcContext> {
   return {
     req: opts.req,
