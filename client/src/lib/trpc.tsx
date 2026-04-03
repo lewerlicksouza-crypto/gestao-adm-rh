@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
-import superjson from "superjson";
 import { useState, type ReactNode } from "react";
 import type { AppRouter } from "../../../server/routers";
 
@@ -19,7 +18,6 @@ export function TRPCReactProvider(props: { children: ReactNode }) {
 
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      transformer: superjson,
       links: [
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
