@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Edit2, Trash2, Eye } from "lucide-react";
 import { Button } from "./Button";
+import { trpc } from "@/lib/trpc";
 
 interface Employee {
   id: number;
@@ -25,7 +26,11 @@ const mockEmployees: Employee[] = [
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
   const [showForm, setShowForm] = useState(false);
+  const { data: employees = [], isLoading } = trpc.employees.list.useQuery();
 
+  if (isLoading) {
+  return <div className="p-6">Carregando funcionários...</div>;
+}
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
