@@ -31,12 +31,12 @@ const emptyForm: EmployeeFormData = {
 export default function EmployeeManagement() {
   const utils = trpc.useUtils();
 
-  const { data: employees = [], isLoading, error } =
-    trpc.employees.list.useQuery();
+  const { data: employees = [] } = trpc.employees.list.useQuery();
 
   const createEmployee = trpc.employees.create.useMutation({
     onSuccess: () => {
       utils.employees.list.invalidate();
+      alert("Funcionário criado com sucesso");
       closeForm();
     },
   });
@@ -44,6 +44,7 @@ export default function EmployeeManagement() {
   const updateEmployee = trpc.employees.update.useMutation({
     onSuccess: () => {
       utils.employees.list.invalidate();
+      alert("Funcionário atualizado com sucesso");
       closeForm();
     },
   });
@@ -51,199 +52,192 @@ export default function EmployeeManagement() {
   const deleteEmployee = trpc.employees.delete.useMutation({
     onSuccess: () => {
       utils.employees.list.invalidate();
+      alert("Funcionário excluído");
     },
   });
 
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
   const [formData, setFormData] = useState<EmployeeFormData>(emptyForm);
+  const [errors, setErrors] = useState<any>({});
 
   function closeForm() {
     setShowForm(false);
     setEditingEmployeeId(null);
     setFormData(emptyForm);
+    setErrors({});
   }
 
-  if (isLoading) {
-    return <div className="p-6">Carregando funcionários...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 text-red-600">
-        Erro ao carregar funcionários: {error.message}
-      </div>
-    );
-  }
-
-  const handleNewEmployee = () => {
-    setEditingEmployeeId(null);
-    setFormData(emptyForm);
-    setShowForm(true);
+  // 🔥 MÁSCARAS
+  const formatCPF = (value: string) => {
+    return value
+      .replace(/\D/g, "")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   };
 
-  const handleView = (employee: any) => {
-    setViewingEmployee(employee);
+  const formatPhone = (value: string) => {
+    return value
+      .replace(/\D/g, "")
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d{4})$/, "$1-$2");
   };
 
-  const handleEdit = (employee: any) => {
-    setEditingEmployeeId(employee.id);
-    setFormData({
-      fullName: employee.fullName ?? "",
-      cpf: employee.cpf ?? "",
-      email: employee.email ?? "",
-      phone: employee.phone ?? "",
-      jobTitle: employee.jobTitle ?? "",
-      department: employee.department ?? "",
-      admissionDate: employee.admissionDate ?? "",
-      status: employee.status ?? "Ativo",
-      notes: employee.notes ?? "",
-    });
-    setShowForm(true);
-  };
+  // 🔥 VALIDAÇÃO
+  const validate = () => {
+    const newErrors: any = {};
 
-  const handleDelete = (employee: any) => {
-    const confirmed = window.confirm(
-      `Tem certeza que deseja excluir o funcionário "${employee.fullName}"?`,
-    );
+    if (!formData.fullName) newErrors.fullName = "Obrigatório";
+    if (!formData.cpf) newErrors.cpf = "Obrigatório";
+    if (!formData.email) newErrors.email = "Obrigatório";
+    if (!formData.jobTitle) newErrors.jobTitle = "Obrigatório";
 
-    if (!confirmed) return;
+    setErrors(newErrors);
 
-    deleteEmployee.mutate({ id: employee.id });
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = () => {
+    if (!validate()) return;
+
     if (editingEmployeeId) {
-      updateEmployee.mutate({
-        id: editingEmployeeId,
-        ...formData,
-      });
+      updateEmployee.mutate({ id: editingEmployeeId, ...formData });
       return;
     }
 
     createEmployee.mutate(formData);
   };
 
-  const mutationError =
-    createEmployee.error?.message ||
-    updateEmployee.error?.message ||
-    deleteEmployee.error?.message;
+  const handleDelete = (employee: any) => {
+    if (!confirm(`Excluir ${employee.fullName}?`)) return;
+    deleteEmployee.mutate({ id: employee.id });
+  };
 
-  const isSaving = createEmployee.isPending || updateEmployee.isPending;
+  const filteredEmployees = employees.filter((emp) =>
+    emp.fullName.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between mb-6">
-        <h2 className="text-2xl font-bold">Funcionários</h2>
+    <div className="bg-white p-6 rounded-lg shadow">
+
+      {/* TOPO */}
+      <div className="flex justify-between mb-4">
+        <input
+          placeholder="Buscar funcionário..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border px-3 py-2 rounded w-1/3"
+        />
 
         <button
-          onClick={handleNewEmployee}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-blue-700"
+          onClick={() => setShowForm(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded flex gap-2"
         >
           <Plus className="w-4 h-4" />
           Novo Funcionário
         </button>
       </div>
 
+      {/* MODAL */}
       {showForm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={closeForm}
-        >
-          <div
-            className="bg-white w-full max-w-4xl rounded-xl p-6 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between mb-6">
-              <h3 className="text-xl font-semibold">
-                {editingEmployeeId ? "Editar Funcionário" : "Novo Funcionário"}
-              </h3>
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
+          <div className="bg-white p-6 rounded w-full max-w-4xl">
 
-              <X onClick={closeForm} className="cursor-pointer" />
-            </div>
+            <h3 className="text-xl mb-4">
+              {editingEmployeeId ? "Editar Funcionário" : "Novo Funcionário"}
+            </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+
               <div>
-                <label className="text-sm text-gray-600">Nome completo</label>
+                <label>Nome</label>
                 <input
                   value={formData.fullName}
                   onChange={(e) =>
                     setFormData({ ...formData, fullName: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className={`border p-2 w-full ${errors.fullName && "border-red-500"}`}
                 />
               </div>
 
               <div>
-                <label className="text-sm text-gray-600">CPF</label>
+                <label>CPF</label>
                 <input
                   value={formData.cpf}
                   onChange={(e) =>
-                    setFormData({ ...formData, cpf: e.target.value })
+                    setFormData({
+                      ...formData,
+                      cpf: formatCPF(e.target.value),
+                    })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className={`border p-2 w-full ${errors.cpf && "border-red-500"}`}
                 />
               </div>
 
               <div>
-                <label className="text-sm text-gray-600">Email</label>
+                <label>Email</label>
                 <input
                   value={formData.email}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className={`border p-2 w-full ${errors.email && "border-red-500"}`}
                 />
               </div>
 
               <div>
-                <label className="text-sm text-gray-600">Telefone</label>
+                <label>Telefone</label>
                 <input
                   value={formData.phone}
                   onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
+                    setFormData({
+                      ...formData,
+                      phone: formatPhone(e.target.value),
+                    })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className="border p-2 w-full"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-gray-600">Cargo</label>
+                <label>Cargo</label>
                 <input
                   value={formData.jobTitle}
                   onChange={(e) =>
                     setFormData({ ...formData, jobTitle: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className={`border p-2 w-full ${errors.jobTitle && "border-red-500"}`}
                 />
               </div>
 
               <div>
-                <label className="text-sm text-gray-600">Setor</label>
+                <label>Setor</label>
                 <input
                   value={formData.department}
                   onChange={(e) =>
                     setFormData({ ...formData, department: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className="border p-2 w-full"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-gray-600">Data de admissão</label>
+                <label>Data</label>
                 <input
                   type="date"
                   value={formData.admissionDate}
                   onChange={(e) =>
                     setFormData({ ...formData, admissionDate: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className="border p-2 w-full"
                 />
               </div>
 
               <div>
-                <label className="text-sm text-gray-600">Status</label>
+                <label>Status</label>
                 <select
                   value={formData.status}
                   onChange={(e) =>
@@ -252,154 +246,73 @@ export default function EmployeeManagement() {
                       status: e.target.value as EmployeeStatus,
                     })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className="border p-2 w-full"
                 >
-                  <option value="Ativo">Ativo</option>
-                  <option value="Inativo">Inativo</option>
+                  <option>Ativo</option>
+                  <option>Inativo</option>
                 </select>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="text-sm text-gray-600">Observações</label>
+              <div className="col-span-2">
+                <label>Observações</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) =>
                     setFormData({ ...formData, notes: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2 min-h-[100px]"
+                  className="border p-2 w-full"
                 />
               </div>
             </div>
 
-            <div className="mt-6 flex gap-3">
+            <div className="mt-4 flex gap-2">
               <button
                 onClick={handleSave}
-                disabled={isSaving}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
               >
-                {isSaving
-                  ? editingEmployeeId
-                    ? "Salvando alterações..."
-                    : "Salvando..."
-                  : editingEmployeeId
-                  ? "Salvar alterações"
-                  : "Salvar"}
+                Salvar
               </button>
 
               <button
                 onClick={closeForm}
-                className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
+                className="bg-gray-300 px-4 py-2 rounded"
               >
                 Cancelar
               </button>
             </div>
-
-            {mutationError && (
-              <div className="mt-3 text-red-600 text-sm">{mutationError}</div>
-            )}
           </div>
         </div>
       )}
 
-      {viewingEmployee && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setViewingEmployee(null)}
-        >
-          <div
-            className="bg-white w-full max-w-3xl rounded-xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between mb-6">
-              <h3 className="text-xl font-semibold">Dados do Funcionário</h3>
-
-              <X
-                className="cursor-pointer"
-                onClick={() => setViewingEmployee(null)}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <strong>Nome:</strong>
-                <p>{viewingEmployee.fullName}</p>
-              </div>
-
-              <div>
-                <strong>CPF:</strong>
-                <p>{viewingEmployee.cpf}</p>
-              </div>
-
-              <div>
-                <strong>Email:</strong>
-                <p>{viewingEmployee.email}</p>
-              </div>
-
-              <div>
-                <strong>Telefone:</strong>
-                <p>{viewingEmployee.phone}</p>
-              </div>
-
-              <div>
-                <strong>Cargo:</strong>
-                <p>{viewingEmployee.jobTitle}</p>
-              </div>
-
-              <div>
-                <strong>Setor:</strong>
-                <p>{viewingEmployee.department}</p>
-              </div>
-
-              <div>
-                <strong>Admissão:</strong>
-                <p>{viewingEmployee.admissionDate || "-"}</p>
-              </div>
-
-              <div>
-                <strong>Status:</strong>
-                <p>{viewingEmployee.status}</p>
-              </div>
-
-              <div className="md:col-span-2">
-                <strong>Observações:</strong>
-                <p>{viewingEmployee.notes || "-"}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* TABELA */}
       <table className="w-full mt-4">
         <thead>
           <tr className="border-b">
-            <th className="text-left py-2">Nome</th>
-            <th className="text-left py-2">CPF</th>
-            <th className="text-left py-2">Cargo</th>
-            <th className="text-left py-2">Setor</th>
-            <th className="text-left py-2">Ações</th>
+            <th>Nome</th>
+            <th>CPF</th>
+            <th>Cargo</th>
+            <th>Setor</th>
+            <th>Ações</th>
           </tr>
         </thead>
 
         <tbody>
-          {employees.map((emp) => (
+          {filteredEmployees.map((emp) => (
             <tr key={emp.id} className="border-b">
-              <td className="py-2">{emp.fullName}</td>
+              <td>{emp.fullName}</td>
               <td>{emp.cpf}</td>
               <td>{emp.jobTitle}</td>
               <td>{emp.department}</td>
-              <td className="flex gap-2 py-2">
-                <Eye
-                  className="cursor-pointer text-blue-600"
-                  onClick={() => handleView(emp)}
-                />
+              <td className="flex gap-2">
+                <Eye onClick={() => setViewingEmployee(emp)} />
                 <Edit2
-                  className="cursor-pointer text-yellow-600"
-                  onClick={() => handleEdit(emp)}
+                  onClick={() => {
+                    setEditingEmployeeId(emp.id);
+                    setFormData(emp);
+                    setShowForm(true);
+                  }}
                 />
-                <Trash2
-                  className="cursor-pointer text-red-600"
-                  onClick={() => handleDelete(emp)}
-                />
+                <Trash2 onClick={() => handleDelete(emp)} />
               </td>
             </tr>
           ))}
