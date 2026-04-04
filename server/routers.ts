@@ -46,98 +46,9 @@ let employeesMock: Employee[] = [
     phone: "(22) 3822-2919",
     jobTitle: "Consultor Técnico",
     department: "Tecnologia",
-    admissionDate: "2024-01-15",
+    admissionDate: "2018-05-02",
     status: "Ativo",
     notes: "Funcionário ativo no setor técnico.",
-  },
-];
-
-let vacationPeriodsMock: VacationPeriod[] = [
-  {
-    id: 101,
-    employeeId: 1,
-    periodNumber: 1,
-    start: "2018-05-02",
-    end: "2019-05-01",
-    totalDays: 30,
-    grantedUntil: "2020-03-28",
-  },
-  {
-    id: 102,
-    employeeId: 1,
-    periodNumber: 2,
-    start: "2019-05-02",
-    end: "2020-05-01",
-    totalDays: 30,
-    grantedUntil: "2021-03-28",
-  },
-  {
-    id: 103,
-    employeeId: 1,
-    periodNumber: 3,
-    start: "2020-05-02",
-    end: "2021-05-01",
-    totalDays: 30,
-    grantedUntil: "2022-03-28",
-  },
-  {
-    id: 104,
-    employeeId: 1,
-    periodNumber: 4,
-    start: "2021-05-02",
-    end: "2022-05-01",
-    totalDays: 30,
-    grantedUntil: "2023-03-28",
-  },
-  {
-    id: 105,
-    employeeId: 1,
-    periodNumber: 5,
-    start: "2022-05-02",
-    end: "2023-05-01",
-    totalDays: 30,
-    grantedUntil: "2024-03-28",
-  },
-  {
-    id: 106,
-    employeeId: 1,
-    periodNumber: 6,
-    start: "2023-05-02",
-    end: "2024-05-01",
-    totalDays: 30,
-    grantedUntil: "2025-03-28",
-  },
-  {
-    id: 107,
-    employeeId: 1,
-    periodNumber: 7,
-    start: "2024-05-02",
-    end: "2025-05-01",
-    totalDays: 30,
-    grantedUntil: "2026-03-28",
-  },
-  {
-    id: 108,
-    employeeId: 1,
-    periodNumber: 8,
-    start: "2025-05-02",
-    end: "2026-05-01",
-    totalDays: 30,
-    grantedUntil: "2027-03-28",
-  },
-];
-
-let vacationsMock: VacationRecord[] = [
-  {
-    id: 1001,
-    employeeId: 1,
-    periodId: 105,
-    startDate: "2024-01-10",
-    endDate: "2024-01-24",
-    vacationDays: 15,
-    bonusDays: 0,
-    status: "Aprovada",
-    notes: "Primeira parte das férias do período 5.",
   },
 ];
 
@@ -152,6 +63,71 @@ function formatIsoDate(date: Date) {
   const day = `${date.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+function addDays(date: Date, days: number) {
+  const cloned = new Date(date);
+  cloned.setDate(cloned.getDate() + days);
+  return cloned;
+}
+
+function addYears(date: Date, years: number) {
+  const cloned = new Date(date);
+  cloned.setFullYear(cloned.getFullYear() + years);
+  return cloned;
+}
+
+function getPeriodId(employeeId: number, periodNumber: number) {
+  return employeeId * 1000 + periodNumber;
+}
+
+function generateVacationPeriodsForEmployee(
+  employee: Employee,
+  totalPeriods = 10,
+): VacationPeriod[] {
+  if (!employee.admissionDate) return [];
+
+  const admissionDate = parseIsoDate(employee.admissionDate);
+
+  return Array.from({ length: totalPeriods }, (_, index) => {
+    const periodNumber = index + 1;
+
+    const periodStart = addYears(admissionDate, index);
+    const nextPeriodStart = addYears(admissionDate, index + 1);
+    const periodEnd = addDays(nextPeriodStart, -1);
+
+    const grantedUntil = addDays(addYears(periodEnd, 1), 0);
+
+    return {
+      id: getPeriodId(employee.id, periodNumber),
+      employeeId: employee.id,
+      periodNumber,
+      start: formatIsoDate(periodStart),
+      end: formatIsoDate(periodEnd),
+      totalDays: 30,
+      grantedUntil: formatIsoDate(grantedUntil),
+    };
+  });
+}
+
+function getAllVacationPeriods() {
+  return employeesMock.flatMap((employee) =>
+    generateVacationPeriodsForEmployee(employee),
+  );
+}
+
+let vacationsMock: VacationRecord[] = [
+  {
+    id: 1001,
+    employeeId: 1,
+    periodId: getPeriodId(1, 5),
+    startDate: "2024-01-10",
+    endDate: "2024-01-24",
+    vacationDays: 15,
+    bonusDays: 0,
+    status: "Aprovada",
+    notes: "Primeira parte das férias do período 5.",
+  },
+];
 
 function calculateEndDate(startDate: string, vacationDays: number) {
   const date = parseIsoDate(startDate);
@@ -222,7 +198,7 @@ function validateVacationInput(
     throw new Error("Funcionário não encontrado.");
   }
 
-  const period = vacationPeriodsMock.find((item) => item.id === periodId);
+  const period = getAllVacationPeriods().find((item) => item.id === periodId);
   if (!period) {
     throw new Error("Período não encontrado.");
   }
@@ -272,8 +248,16 @@ export const appRouter = router({
       .input((val) => {
         const data = val as Omit<Employee, "id">;
 
-        if (!data.fullName || !data.cpf || !data.email || !data.jobTitle) {
-          throw new Error("Nome, CPF, email e cargo são obrigatórios.");
+        if (
+          !data.fullName ||
+          !data.cpf ||
+          !data.email ||
+          !data.jobTitle ||
+          !data.admissionDate
+        ) {
+          throw new Error(
+            "Nome, CPF, email, cargo e data de admissão são obrigatórios.",
+          );
         }
 
         return data;
@@ -300,8 +284,17 @@ export const appRouter = router({
       .input((val) => {
         const data = val as Employee;
 
-        if (!data.id || !data.fullName || !data.cpf || !data.email || !data.jobTitle) {
-          throw new Error("ID, nome, CPF, email e cargo são obrigatórios.");
+        if (
+          !data.id ||
+          !data.fullName ||
+          !data.cpf ||
+          !data.email ||
+          !data.jobTitle ||
+          !data.admissionDate
+        ) {
+          throw new Error(
+            "ID, nome, CPF, email, cargo e data de admissão são obrigatórios.",
+          );
         }
 
         return data;
@@ -339,9 +332,6 @@ export const appRouter = router({
         }
 
         employeesMock = employeesMock.filter((employee) => employee.id !== input.id);
-        vacationPeriodsMock = vacationPeriodsMock.filter(
-          (period) => period.employeeId !== input.id,
-        );
         vacationsMock = vacationsMock.filter(
           (vacation) => vacation.employeeId !== input.id,
         );
@@ -352,7 +342,7 @@ export const appRouter = router({
 
   vacationPeriods: router({
     list: publicProcedure.query(() => {
-      return vacationPeriodsMock;
+      return getAllVacationPeriods();
     }),
   }),
 
