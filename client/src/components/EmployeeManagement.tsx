@@ -2,6 +2,32 @@ import { useState } from "react";
 import { Eye, Edit2, Trash2, Plus, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
+type EmployeeStatus = "Ativo" | "Inativo";
+
+type EmployeeFormData = {
+  fullName: string;
+  cpf: string;
+  email: string;
+  phone: string;
+  jobTitle: string;
+  department: string;
+  admissionDate: string;
+  status: EmployeeStatus;
+  notes: string;
+};
+
+const emptyForm: EmployeeFormData = {
+  fullName: "",
+  cpf: "",
+  email: "",
+  phone: "",
+  jobTitle: "",
+  department: "",
+  admissionDate: "",
+  status: "Ativo",
+  notes: "",
+};
+
 export default function EmployeeManagement() {
   const utils = trpc.useUtils();
 
@@ -11,35 +37,27 @@ export default function EmployeeManagement() {
   const createEmployee = trpc.employees.create.useMutation({
     onSuccess: () => {
       utils.employees.list.invalidate();
-      setShowForm(false);
-      setFormData({
-        fullName: "",
-        cpf: "",
-        email: "",
-        phone: "",
-        jobTitle: "",
-        department: "",
-        admissionDate: "",
-        status: "Ativo",
-        notes: "",
-      });
+      closeForm();
+    },
+  });
+
+  const updateEmployee = trpc.employees.update.useMutation({
+    onSuccess: () => {
+      utils.employees.list.invalidate();
+      closeForm();
     },
   });
 
   const [showForm, setShowForm] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
+  const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<EmployeeFormData>(emptyForm);
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    cpf: "",
-    email: "",
-    phone: "",
-    jobTitle: "",
-    department: "",
-    admissionDate: "",
-    status: "Ativo",
-    notes: "",
-  });
+  function closeForm() {
+    setShowForm(false);
+    setEditingEmployeeId(null);
+    setFormData(emptyForm);
+  }
 
   if (isLoading) {
     return <div className="p-6">Carregando funcionários...</div>;
@@ -54,10 +72,20 @@ export default function EmployeeManagement() {
   }
 
   const handleNewEmployee = () => {
+    setEditingEmployeeId(null);
+    setFormData(emptyForm);
     setShowForm(true);
   };
 
   const handleSave = () => {
+    if (editingEmployeeId) {
+      updateEmployee.mutate({
+        id: editingEmployeeId,
+        ...formData,
+      });
+      return;
+    }
+
     createEmployee.mutate(formData);
   };
 
@@ -65,13 +93,28 @@ export default function EmployeeManagement() {
     setViewingEmployee(employee);
   };
 
-  const handleEdit = (employeeName: string) => {
-    alert(`Editar funcionário: ${employeeName}`);
+  const handleEdit = (employee: any) => {
+    setEditingEmployeeId(employee.id);
+    setFormData({
+      fullName: employee.fullName,
+      cpf: employee.cpf,
+      email: employee.email,
+      phone: employee.phone,
+      jobTitle: employee.jobTitle,
+      department: employee.department,
+      admissionDate: employee.admissionDate,
+      status: employee.status,
+      notes: employee.notes,
+    });
+    setShowForm(true);
   };
 
   const handleDelete = (employeeName: string) => {
     alert(`Excluir funcionário: ${employeeName}`);
   };
+
+  const mutationError = createEmployee.error?.message || updateEmployee.error?.message;
+  const isSaving = createEmployee.isPending || updateEmployee.isPending;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -90,7 +133,7 @@ export default function EmployeeManagement() {
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setShowForm(false)}
+          onClick={closeForm}
         >
           <div
             className="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 relative max-h-[90vh] overflow-y-auto"
@@ -98,11 +141,11 @@ export default function EmployeeManagement() {
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
-                Cadastro de Funcionário
+                {editingEmployeeId ? "Editar Funcionário" : "Cadastro de Funcionário"}
               </h3>
 
               <button
-                onClick={() => setShowForm(false)}
+                onClick={closeForm}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <X className="w-5 h-5" />
@@ -184,7 +227,7 @@ export default function EmployeeManagement() {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    status: e.target.value as "Ativo" | "Inativo",
+                    status: e.target.value as EmployeeStatus,
                   })
                 }
                 className="border border-gray-300 rounded-lg px-3 py-2"
@@ -206,24 +249,28 @@ export default function EmployeeManagement() {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={handleSave}
-                disabled={createEmployee.isPending}
+                disabled={isSaving}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition disabled:opacity-50"
               >
-                {createEmployee.isPending ? "Salvando..." : "Salvar"}
+                {isSaving
+                  ? editingEmployeeId
+                    ? "Salvando alterações..."
+                    : "Salvando..."
+                  : editingEmployeeId
+                  ? "Salvar alterações"
+                  : "Salvar"}
               </button>
 
               <button
-                onClick={() => setShowForm(false)}
+                onClick={closeForm}
                 className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition"
               >
                 Cancelar
               </button>
             </div>
 
-            {createEmployee.error && (
-              <div className="mt-3 text-red-600 text-sm">
-                {createEmployee.error.message}
-              </div>
+            {mutationError && (
+              <div className="mt-3 text-red-600 text-sm">{mutationError}</div>
             )}
           </div>
         </div>
@@ -344,13 +391,15 @@ export default function EmployeeManagement() {
                       <button
                         onClick={() => handleView(employee)}
                         className="text-blue-600 hover:text-blue-800"
+                        title="Visualizar"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
 
                       <button
-                        onClick={() => handleEdit(employee.fullName)}
+                        onClick={() => handleEdit(employee)}
                         className="text-yellow-600 hover:text-yellow-800"
+                        title="Editar"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -358,6 +407,7 @@ export default function EmployeeManagement() {
                       <button
                         onClick={() => handleDelete(employee.fullName)}
                         className="text-red-600 hover:text-red-800"
+                        title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
