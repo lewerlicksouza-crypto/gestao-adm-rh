@@ -77,95 +77,104 @@ export default function EmployeeManagement() {
         </button>
       </div>
 
+      {/* MODAL */}
       {showForm && (
-        <div className="mb-6 border rounded-lg p-4 bg-gray-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Novo Funcionário
-            </h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowForm(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Novo Funcionário
+              </h3>
 
-            <button
-              onClick={() => setShowForm(false)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Nome completo"
-              value={formData.fullName}
-              onChange={(e) =>
-                setFormData({ ...formData, fullName: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2"
-            />
-
-            <input
-              type="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2"
-            />
-
-            <input
-              type="text"
-              placeholder="Telefone"
-              value={formData.phone}
-              onChange={(e) =>
-                setFormData({ ...formData, phone: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2"
-            />
-
-            <input
-              type="text"
-              placeholder="Cargo"
-              value={formData.jobTitle}
-              onChange={(e) =>
-                setFormData({ ...formData, jobTitle: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2"
-            />
-
-            <input
-              type="text"
-              placeholder="Setor"
-              value={formData.department}
-              onChange={(e) =>
-                setFormData({ ...formData, department: e.target.value })
-              }
-              className="border border-gray-300 rounded-lg px-3 py-2 md:col-span-2"
-            />
-          </div>
-
-          <div className="mt-4 flex gap-3">
-            <button
-              onClick={handleSave}
-              disabled={createEmployee.isPending}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition disabled:opacity-50"
-            >
-              {createEmployee.isPending ? "Salvando..." : "Salvar"}
-            </button>
-
-            <button
-              onClick={() => setShowForm(false)}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition"
-            >
-              Cancelar
-            </button>
-          </div>
-
-          {createEmployee.error && (
-            <div className="mt-3 text-red-600 text-sm">
-              {createEmployee.error.message}
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Nome completo"
+                value={formData.fullName}
+                onChange={(e) =>
+                  setFormData({ ...formData, fullName: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+
+              <input
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+
+              <input
+                type="text"
+                placeholder="Telefone"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+
+              <input
+                type="text"
+                placeholder="Cargo"
+                value={formData.jobTitle}
+                onChange={(e) =>
+                  setFormData({ ...formData, jobTitle: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+
+              <input
+                type="text"
+                placeholder="Setor"
+                value={formData.department}
+                onChange={(e) =>
+                  setFormData({ ...formData, department: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2 md:col-span-2"
+              />
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={handleSave}
+                disabled={createEmployee.isPending}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition disabled:opacity-50"
+              >
+                {createEmployee.isPending ? "Salvando..." : "Salvar"}
+              </button>
+
+              <button
+                onClick={() => setShowForm(false)}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition"
+              >
+                Cancelar
+              </button>
+            </div>
+
+            {createEmployee.error && (
+              <div className="mt-3 text-red-600 text-sm">
+                {createEmployee.error.message}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -178,85 +187,33 @@ export default function EmployeeManagement() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-gray-300">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                  Nome
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                  Email
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                  Cargo
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                  Setor
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                  Status
-                </th>
-                <th className="text-center py-3 px-4 font-semibold text-gray-700">
-                  Ações
-                </th>
+                <th className="text-left py-3 px-4">Nome</th>
+                <th className="text-left py-3 px-4">Email</th>
+                <th className="text-left py-3 px-4">Cargo</th>
+                <th className="text-left py-3 px-4">Setor</th>
+                <th className="text-left py-3 px-4">Status</th>
+                <th className="text-center py-3 px-4">Ações</th>
               </tr>
             </thead>
 
             <tbody>
               {employees.map((employee) => (
-                <tr
-                  key={employee.id}
-                  className="border-b border-gray-200 hover:bg-gray-50"
-                >
-                  <td className="py-4 px-4 text-gray-900 font-medium">
+                <tr key={employee.id} className="border-b">
+                  <td className="py-4 px-4 font-medium">
                     {employee.fullName}
                   </td>
-
-                  <td className="py-4 px-4 text-gray-700">{employee.email}</td>
-
-                  <td className="py-4 px-4 text-gray-700">
-                    {employee.jobTitle}
-                  </td>
-
-                  <td className="py-4 px-4 text-gray-700">
-                    {employee.department}
-                  </td>
-
+                  <td className="py-4 px-4">{employee.email}</td>
+                  <td className="py-4 px-4">{employee.jobTitle}</td>
+                  <td className="py-4 px-4">{employee.department}</td>
                   <td className="py-4 px-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        employee.isActive
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {employee.isActive ? "Ativo" : "Inativo"}
+                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded">
+                      Ativo
                     </span>
                   </td>
-
-                  <td className="py-4 px-4">
-                    <div className="flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => handleView(employee.fullName)}
-                        className="text-blue-600 hover:text-blue-800 transition"
-                        title="Visualizar"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleEdit(employee.fullName)}
-                        className="text-amber-500 hover:text-amber-700 transition"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(employee.fullName)}
-                        className="text-red-600 hover:text-red-800 transition"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <td className="py-4 px-4 text-center flex justify-center gap-3">
+                    <Eye className="w-4 h-4 text-blue-600 cursor-pointer" />
+                    <Edit2 className="w-4 h-4 text-yellow-600 cursor-pointer" />
+                    <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" />
                   </td>
                 </tr>
               ))}
