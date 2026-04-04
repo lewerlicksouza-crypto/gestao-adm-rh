@@ -1,9 +1,35 @@
-import { Eye, Edit2, Trash2, Plus } from "lucide-react";
+import { useState } from "react";
+import { Eye, Edit2, Trash2, Plus, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 export default function EmployeeManagement() {
+  const utils = trpc.useUtils();
+
   const { data: employees = [], isLoading, error } =
     trpc.employees.list.useQuery();
+
+  const createEmployee = trpc.employees.create.useMutation({
+    onSuccess: () => {
+      utils.employees.list.invalidate();
+      setShowForm(false);
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        jobTitle: "",
+        department: "",
+      });
+    },
+  });
+
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    jobTitle: "",
+    department: "",
+  });
 
   if (isLoading) {
     return <div className="p-6">Carregando funcionários...</div>;
@@ -30,7 +56,11 @@ export default function EmployeeManagement() {
   };
 
   const handleNewEmployee = () => {
-    alert("Abrir formulário de novo funcionário");
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    createEmployee.mutate(formData);
   };
 
   return (
@@ -46,6 +76,98 @@ export default function EmployeeManagement() {
           Novo Funcionário
         </button>
       </div>
+
+      {showForm && (
+        <div className="mb-6 border rounded-lg p-4 bg-gray-50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Novo Funcionário
+            </h3>
+
+            <button
+              onClick={() => setShowForm(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Nome completo"
+              value={formData.fullName}
+              onChange={(e) =>
+                setFormData({ ...formData, fullName: e.target.value })
+              }
+              className="border border-gray-300 rounded-lg px-3 py-2"
+            />
+
+            <input
+              type="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              className="border border-gray-300 rounded-lg px-3 py-2"
+            />
+
+            <input
+              type="text"
+              placeholder="Telefone"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
+              className="border border-gray-300 rounded-lg px-3 py-2"
+            />
+
+            <input
+              type="text"
+              placeholder="Cargo"
+              value={formData.jobTitle}
+              onChange={(e) =>
+                setFormData({ ...formData, jobTitle: e.target.value })
+              }
+              className="border border-gray-300 rounded-lg px-3 py-2"
+            />
+
+            <input
+              type="text"
+              placeholder="Setor"
+              value={formData.department}
+              onChange={(e) =>
+                setFormData({ ...formData, department: e.target.value })
+              }
+              className="border border-gray-300 rounded-lg px-3 py-2 md:col-span-2"
+            />
+          </div>
+
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={handleSave}
+              disabled={createEmployee.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition disabled:opacity-50"
+            >
+              {createEmployee.isPending ? "Salvando..." : "Salvar"}
+            </button>
+
+            <button
+              onClick={() => setShowForm(false)}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition"
+            >
+              Cancelar
+            </button>
+          </div>
+
+          {createEmployee.error && (
+            <div className="mt-3 text-red-600 text-sm">
+              {createEmployee.error.message}
+            </div>
+          )}
+        </div>
+      )}
 
       {employees.length === 0 ? (
         <div className="text-gray-500 py-8 text-center">
