@@ -95,6 +95,28 @@ export const appRouter = router({
 
         return employeesMock[index];
       }),
+
+    delete: publicProcedure
+      .input((val) => {
+        const data = val as { id: number };
+
+        if (!data.id) {
+          throw new Error("ID do funcionário é obrigatório.");
+        }
+
+        return data;
+      })
+      .mutation(({ input }) => {
+        const exists = employeesMock.some((employee) => employee.id === input.id);
+
+        if (!exists) {
+          throw new Error("Funcionário não encontrado.");
+        }
+
+        employeesMock = employeesMock.filter((employee) => employee.id !== input.id);
+
+        return { success: true };
+      }),
   }),
 });
 
