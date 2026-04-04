@@ -59,22 +59,64 @@ export default function EmployeeManagement() {
     setFormData(emptyForm);
   }
 
-  if (isLoading) return <div className="p-6">Carregando...</div>;
-  if (error) return <div className="p-6 text-red-600">{error.message}</div>;
+  if (isLoading) {
+    return <div className="p-6">Carregando funcionários...</div>;
+  }
 
-  const handleSave = () => {
-    if (editingEmployeeId) {
-      updateEmployee.mutate({ id: editingEmployeeId, ...formData });
-      return;
-    }
-    createEmployee.mutate(formData);
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">
+        Erro ao carregar funcionários: {error.message}
+      </div>
+    );
+  }
+
+  const handleNewEmployee = () => {
+    setEditingEmployeeId(null);
+    setFormData(emptyForm);
+    setShowForm(true);
+  };
+
+  const handleView = (employee: any) => {
+    setViewingEmployee(employee);
   };
 
   const handleEdit = (employee: any) => {
     setEditingEmployeeId(employee.id);
-    setFormData(employee);
+    setFormData({
+      fullName: employee.fullName ?? "",
+      cpf: employee.cpf ?? "",
+      email: employee.email ?? "",
+      phone: employee.phone ?? "",
+      jobTitle: employee.jobTitle ?? "",
+      department: employee.department ?? "",
+      admissionDate: employee.admissionDate ?? "",
+      status: employee.status ?? "Ativo",
+      notes: employee.notes ?? "",
+    });
     setShowForm(true);
   };
+
+  const handleDelete = (employeeName: string) => {
+    alert(`Excluir funcionário: ${employeeName}`);
+  };
+
+  const handleSave = () => {
+    if (editingEmployeeId) {
+      updateEmployee.mutate({
+        id: editingEmployeeId,
+        ...formData,
+      });
+      return;
+    }
+
+    createEmployee.mutate(formData);
+  };
+
+  const mutationError =
+    createEmployee.error?.message || updateEmployee.error?.message;
+
+  const isSaving = createEmployee.isPending || updateEmployee.isPending;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -82,22 +124,21 @@ export default function EmployeeManagement() {
         <h2 className="text-2xl font-bold">Funcionários</h2>
 
         <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex gap-2"
+          onClick={handleNewEmployee}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-blue-700"
         >
           <Plus className="w-4 h-4" />
           Novo Funcionário
         </button>
       </div>
 
-      {/* MODAL */}
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={closeForm}
         >
           <div
-            className="bg-white w-full max-w-4xl rounded-xl p-6"
+            className="bg-white w-full max-w-4xl rounded-xl p-6 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between mb-6">
@@ -108,9 +149,7 @@ export default function EmployeeManagement() {
               <X onClick={closeForm} className="cursor-pointer" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-
-              {/* Nome */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-gray-600">Nome completo</label>
                 <input
@@ -122,7 +161,6 @@ export default function EmployeeManagement() {
                 />
               </div>
 
-              {/* CPF */}
               <div>
                 <label className="text-sm text-gray-600">CPF</label>
                 <input
@@ -134,7 +172,6 @@ export default function EmployeeManagement() {
                 />
               </div>
 
-              {/* Email */}
               <div>
                 <label className="text-sm text-gray-600">Email</label>
                 <input
@@ -146,7 +183,6 @@ export default function EmployeeManagement() {
                 />
               </div>
 
-              {/* Telefone */}
               <div>
                 <label className="text-sm text-gray-600">Telefone</label>
                 <input
@@ -158,7 +194,6 @@ export default function EmployeeManagement() {
                 />
               </div>
 
-              {/* Cargo */}
               <div>
                 <label className="text-sm text-gray-600">Cargo</label>
                 <input
@@ -170,7 +205,6 @@ export default function EmployeeManagement() {
                 />
               </div>
 
-              {/* Setor */}
               <div>
                 <label className="text-sm text-gray-600">Setor</label>
                 <input
@@ -182,7 +216,6 @@ export default function EmployeeManagement() {
                 />
               </div>
 
-              {/* Data */}
               <div>
                 <label className="text-sm text-gray-600">Data de admissão</label>
                 <input
@@ -195,7 +228,6 @@ export default function EmployeeManagement() {
                 />
               </div>
 
-              {/* Status */}
               <div>
                 <label className="text-sm text-gray-600">Status</label>
                 <select
@@ -208,20 +240,19 @@ export default function EmployeeManagement() {
                   }
                   className="w-full border rounded px-3 py-2"
                 >
-                  <option>Ativo</option>
-                  <option>Inativo</option>
+                  <option value="Ativo">Ativo</option>
+                  <option value="Inativo">Inativo</option>
                 </select>
               </div>
 
-              {/* Observações */}
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <label className="text-sm text-gray-600">Observações</label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) =>
                     setFormData({ ...formData, notes: e.target.value })
                   }
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border rounded px-3 py-2 min-h-[100px]"
                 />
               </div>
             </div>
@@ -229,23 +260,101 @@ export default function EmployeeManagement() {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={handleSave}
-                className="bg-blue-600 text-white px-4 py-2 rounded"
+                disabled={isSaving}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
               >
-                {editingEmployeeId ? "Salvar alterações" : "Salvar"}
+                {isSaving
+                  ? editingEmployeeId
+                    ? "Salvando alterações..."
+                    : "Salvando..."
+                  : editingEmployeeId
+                  ? "Salvar alterações"
+                  : "Salvar"}
               </button>
 
               <button
                 onClick={closeForm}
-                className="bg-gray-200 px-4 py-2 rounded"
+                className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
               >
                 Cancelar
               </button>
+            </div>
+
+            {mutationError && (
+              <div className="mt-3 text-red-600 text-sm">{mutationError}</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {viewingEmployee && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setViewingEmployee(null)}
+        >
+          <div
+            className="bg-white w-full max-w-3xl rounded-xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between mb-6">
+              <h3 className="text-xl font-semibold">Dados do Funcionário</h3>
+
+              <X
+                className="cursor-pointer"
+                onClick={() => setViewingEmployee(null)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <strong>Nome:</strong>
+                <p>{viewingEmployee.fullName}</p>
+              </div>
+
+              <div>
+                <strong>CPF:</strong>
+                <p>{viewingEmployee.cpf}</p>
+              </div>
+
+              <div>
+                <strong>Email:</strong>
+                <p>{viewingEmployee.email}</p>
+              </div>
+
+              <div>
+                <strong>Telefone:</strong>
+                <p>{viewingEmployee.phone}</p>
+              </div>
+
+              <div>
+                <strong>Cargo:</strong>
+                <p>{viewingEmployee.jobTitle}</p>
+              </div>
+
+              <div>
+                <strong>Setor:</strong>
+                <p>{viewingEmployee.department}</p>
+              </div>
+
+              <div>
+                <strong>Admissão:</strong>
+                <p>{viewingEmployee.admissionDate || "-"}</p>
+              </div>
+
+              <div>
+                <strong>Status:</strong>
+                <p>{viewingEmployee.status}</p>
+              </div>
+
+              <div className="md:col-span-2">
+                <strong>Observações:</strong>
+                <p>{viewingEmployee.notes || "-"}</p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* TABELA */}
       <table className="w-full mt-4">
         <thead>
           <tr className="border-b">
@@ -265,11 +374,18 @@ export default function EmployeeManagement() {
               <td>{emp.jobTitle}</td>
               <td>{emp.department}</td>
               <td className="flex gap-2 py-2">
+                <Eye
+                  className="cursor-pointer text-blue-600"
+                  onClick={() => handleView(emp)}
+                />
                 <Edit2
                   className="cursor-pointer text-yellow-600"
                   onClick={() => handleEdit(emp)}
                 />
-                <Trash2 className="cursor-pointer text-red-600" />
+                <Trash2
+                  className="cursor-pointer text-red-600"
+                  onClick={() => handleDelete(emp.fullName)}
+                />
               </td>
             </tr>
           ))}
