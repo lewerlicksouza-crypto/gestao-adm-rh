@@ -70,6 +70,31 @@ export const appRouter = router({
         employeesMock = [...employeesMock, newEmployee];
         return newEmployee;
       }),
+
+    update: publicProcedure
+      .input((val) => {
+        const data = val as Employee;
+
+        if (!data.id || !data.fullName || !data.cpf || !data.email || !data.jobTitle) {
+          throw new Error("ID, nome, CPF, email e cargo são obrigatórios.");
+        }
+
+        return data;
+      })
+      .mutation(({ input }) => {
+        const index = employeesMock.findIndex((employee) => employee.id === input.id);
+
+        if (index === -1) {
+          throw new Error("Funcionário não encontrado.");
+        }
+
+        employeesMock[index] = {
+          ...employeesMock[index],
+          ...input,
+        };
+
+        return employeesMock[index];
+      }),
   }),
 });
 
