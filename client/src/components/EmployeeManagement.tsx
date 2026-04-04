@@ -14,21 +14,31 @@ export default function EmployeeManagement() {
       setShowForm(false);
       setFormData({
         fullName: "",
+        cpf: "",
         email: "",
         phone: "",
         jobTitle: "",
         department: "",
+        admissionDate: "",
+        status: "Ativo",
+        notes: "",
       });
     },
   });
 
   const [showForm, setShowForm] = useState(false);
+  const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
+
   const [formData, setFormData] = useState({
     fullName: "",
+    cpf: "",
     email: "",
     phone: "",
     jobTitle: "",
     department: "",
+    admissionDate: "",
+    status: "Ativo",
+    notes: "",
   });
 
   if (isLoading) {
@@ -43,8 +53,16 @@ export default function EmployeeManagement() {
     );
   }
 
-  const handleView = (employeeName: string) => {
-    alert(`Visualizar funcionário: ${employeeName}`);
+  const handleNewEmployee = () => {
+    setShowForm(true);
+  };
+
+  const handleSave = () => {
+    createEmployee.mutate(formData);
+  };
+
+  const handleView = (employee: any) => {
+    setViewingEmployee(employee);
   };
 
   const handleEdit = (employeeName: string) => {
@@ -53,14 +71,6 @@ export default function EmployeeManagement() {
 
   const handleDelete = (employeeName: string) => {
     alert(`Excluir funcionário: ${employeeName}`);
-  };
-
-  const handleNewEmployee = () => {
-    setShowForm(true);
-  };
-
-  const handleSave = () => {
-    createEmployee.mutate(formData);
   };
 
   return (
@@ -77,19 +87,18 @@ export default function EmployeeManagement() {
         </button>
       </div>
 
-      {/* MODAL */}
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
           onClick={() => setShowForm(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 relative"
+            className="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Novo Funcionário
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Cadastro de Funcionário
               </h3>
 
               <button
@@ -107,6 +116,16 @@ export default function EmployeeManagement() {
                 value={formData.fullName}
                 onChange={(e) =>
                   setFormData({ ...formData, fullName: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+
+              <input
+                type="text"
+                placeholder="CPF"
+                value={formData.cpf}
+                onChange={(e) =>
+                  setFormData({ ...formData, cpf: e.target.value })
                 }
                 className="border border-gray-300 rounded-lg px-3 py-2"
               />
@@ -143,16 +162,48 @@ export default function EmployeeManagement() {
 
               <input
                 type="text"
-                placeholder="Setor"
+                placeholder="Setor / Departamento"
                 value={formData.department}
                 onChange={(e) =>
                   setFormData({ ...formData, department: e.target.value })
                 }
-                className="border border-gray-300 rounded-lg px-3 py-2 md:col-span-2"
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+
+              <input
+                type="date"
+                value={formData.admissionDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, admissionDate: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              />
+
+              <select
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    status: e.target.value as "Ativo" | "Inativo",
+                  })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2"
+              >
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+
+              <textarea
+                placeholder="Observações"
+                value={formData.notes}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
+                className="border border-gray-300 rounded-lg px-3 py-2 md:col-span-2 min-h-[100px]"
               />
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-6 flex gap-3">
               <button
                 onClick={handleSave}
                 disabled={createEmployee.isPending}
@@ -178,6 +229,78 @@ export default function EmployeeManagement() {
         </div>
       )}
 
+      {viewingEmployee && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setViewingEmployee(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6 relative max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Dados do Funcionário
+              </h3>
+
+              <button
+                onClick={() => setViewingEmployee(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-semibold">Nome:</span>
+                <p>{viewingEmployee.fullName}</p>
+              </div>
+
+              <div>
+                <span className="font-semibold">CPF:</span>
+                <p>{viewingEmployee.cpf}</p>
+              </div>
+
+              <div>
+                <span className="font-semibold">Email:</span>
+                <p>{viewingEmployee.email}</p>
+              </div>
+
+              <div>
+                <span className="font-semibold">Telefone:</span>
+                <p>{viewingEmployee.phone}</p>
+              </div>
+
+              <div>
+                <span className="font-semibold">Cargo:</span>
+                <p>{viewingEmployee.jobTitle}</p>
+              </div>
+
+              <div>
+                <span className="font-semibold">Setor:</span>
+                <p>{viewingEmployee.department}</p>
+              </div>
+
+              <div>
+                <span className="font-semibold">Data de admissão:</span>
+                <p>{viewingEmployee.admissionDate || "-"}</p>
+              </div>
+
+              <div>
+                <span className="font-semibold">Status:</span>
+                <p>{viewingEmployee.status}</p>
+              </div>
+
+              <div className="md:col-span-2">
+                <span className="font-semibold">Observações:</span>
+                <p>{viewingEmployee.notes || "-"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {employees.length === 0 ? (
         <div className="text-gray-500 py-8 text-center">
           Nenhum funcionário encontrado.
@@ -188,6 +311,7 @@ export default function EmployeeManagement() {
             <thead>
               <tr className="border-b border-gray-300">
                 <th className="text-left py-3 px-4">Nome</th>
+                <th className="text-left py-3 px-4">CPF</th>
                 <th className="text-left py-3 px-4">Email</th>
                 <th className="text-left py-3 px-4">Cargo</th>
                 <th className="text-left py-3 px-4">Setor</th>
@@ -199,21 +323,45 @@ export default function EmployeeManagement() {
             <tbody>
               {employees.map((employee) => (
                 <tr key={employee.id} className="border-b">
-                  <td className="py-4 px-4 font-medium">
-                    {employee.fullName}
-                  </td>
+                  <td className="py-4 px-4 font-medium">{employee.fullName}</td>
+                  <td className="py-4 px-4">{employee.cpf}</td>
                   <td className="py-4 px-4">{employee.email}</td>
                   <td className="py-4 px-4">{employee.jobTitle}</td>
                   <td className="py-4 px-4">{employee.department}</td>
                   <td className="py-4 px-4">
-                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded">
-                      Ativo
+                    <span
+                      className={`px-2 py-1 rounded ${
+                        employee.status === "Ativo"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {employee.status}
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-center flex justify-center gap-3">
-                    <Eye className="w-4 h-4 text-blue-600 cursor-pointer" />
-                    <Edit2 className="w-4 h-4 text-yellow-600 cursor-pointer" />
-                    <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" />
+                  <td className="py-4 px-4">
+                    <div className="flex justify-center gap-3">
+                      <button
+                        onClick={() => handleView(employee)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleEdit(employee.fullName)}
+                        className="text-yellow-600 hover:text-yellow-800"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(employee.fullName)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
