@@ -48,6 +48,12 @@ export default function EmployeeManagement() {
     },
   });
 
+  const deleteEmployee = trpc.employees.delete.useMutation({
+    onSuccess: () => {
+      utils.employees.list.invalidate();
+    },
+  });
+
   const [showForm, setShowForm] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(null);
@@ -97,8 +103,14 @@ export default function EmployeeManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = (employeeName: string) => {
-    alert(`Excluir funcionário: ${employeeName}`);
+  const handleDelete = (employee: any) => {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir o funcionário "${employee.fullName}"?`,
+    );
+
+    if (!confirmed) return;
+
+    deleteEmployee.mutate({ id: employee.id });
   };
 
   const handleSave = () => {
@@ -114,7 +126,9 @@ export default function EmployeeManagement() {
   };
 
   const mutationError =
-    createEmployee.error?.message || updateEmployee.error?.message;
+    createEmployee.error?.message ||
+    updateEmployee.error?.message ||
+    deleteEmployee.error?.message;
 
   const isSaving = createEmployee.isPending || updateEmployee.isPending;
 
@@ -384,7 +398,7 @@ export default function EmployeeManagement() {
                 />
                 <Trash2
                   className="cursor-pointer text-red-600"
-                  onClick={() => handleDelete(emp.fullName)}
+                  onClick={() => handleDelete(emp)}
                 />
               </td>
             </tr>
