@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye, Edit2, Trash2, Plus, X, AlertTriangle } from "lucide-react";
+import { Eye, CalendarPlus, Bell, X, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 type VacationStatus = "Pendente" | "Aprovada" | "Rejeitada";
@@ -82,14 +82,9 @@ export default function VacationManagement() {
     },
   });
 
-  const deleteVacation = trpc.vacations.delete.useMutation({
-    onSuccess: () => {
-      utils.vacations.list.invalidate();
-    },
-  });
-
   const [showForm, setShowForm] = useState(false);
-  const [viewingVacation, setViewingVacation] = useState<any | null>(null);
+  const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
+  const [alertEmployee, setAlertEmployee] = useState<any | null>(null);
   const [editingVacationId, setEditingVacationId] = useState<number | null>(null);
   const [formData, setFormData] = useState<VacationFormData>(emptyForm);
 
@@ -97,7 +92,6 @@ export default function VacationManagement() {
 
   function closeForm() {
     setShowForm(false);
-    setViewingVacation(null);
     setEditingVacationId(null);
     setFormData(emptyForm);
   }
@@ -138,6 +132,8 @@ export default function VacationManagement() {
         return {
           ...period,
           employeeName: employee?.fullName ?? "Funcionário não encontrado",
+          employeeJobTitle: employee?.jobTitle ?? "-",
+          employeeDepartment: employee?.department ?? "-",
           usedDays,
           remainingDays,
           availableDate,
@@ -147,13 +143,51 @@ export default function VacationManagement() {
           daysUntilExpiration,
         };
       })
-      .sort((a, b) => {
-        if (a.employeeName !== b.employeeName) {
-          return a.employeeName.localeCompare(b.employeeName);
-        }
-        return a.periodNumber - b.periodNumber;
-      });
+      .sort((a, b) => a.periodNumber - b.periodNumber);
   }, [periods, vacations, employees]);
+
+  const employeeVacationSummary = useMemo(() => {
+    return employees.map((employee) => {
+      const employeePeriods = periodSummaries.filter(
+        (period) => period.employeeId === employee.id,
+      );
+
+      const expiredCount = employeePeriods.filter((p) => p.isExpired).length;
+      const nearExpirationCount = employeePeriods.filter(
+        (p) => p.isNearExpiration,
+      ).length;
+      const availablePeriods = employeePeriods.filter(
+        (p) => p.isAvailable && p.remainingDays > 0,
+      ).length;
+
+      const nextExpiration = employeePeriods
+        .filter((p) => p.remainingDays > 0)
+        .sort(
+          (a, b) =>
+            new Date(a.grantedUntil).getTime() - new Date(b.grantedUntil).getTime(),
+        )[0];
+
+      let vacationStatus = "Sem períodos disponíveis";
+
+      if (expiredCount > 0) {
+        vacationStatus = `${expiredCount} vencido(s)`;
+      } else if (nearExpirationCount > 0) {
+        vacationStatus = `${nearExpirationCount} próximo(s) do vencimento`;
+      } else if (availablePeriods > 0) {
+        vacationStatus = `${availablePeriods} período(s) disponível(is)`;
+      }
+
+      return {
+        employee,
+        periods: employeePeriods,
+        expiredCount,
+        nearExpirationCount,
+        availablePeriods,
+        nextExpiration,
+        vacationStatus,
+      };
+    });
+  }, [employees, periodSummaries]);
 
   const selectedEmployeePeriods = useMemo(() => {
     if (!formData.employeeId) return [];
@@ -173,11 +207,14 @@ export default function VacationManagement() {
     return calculateEndDate(formData.startDate, formData.vacationDays);
   }, [formData.startDate, formData.vacationDays]);
 
-  const periodAlerts = useMemo(() => {
+  const employeeAlerts = useMemo(() => {
+    if (!alertEmployee) return [];
     return periodSummaries.filter(
-      (period) => period.isExpired || period.isNearExpiration,
+      (period) =>
+        period.employeeId === alertEmployee.id &&
+        (period.isExpired || period.isNearExpiration),
     );
-  }, [periodSummaries]);
+  }, [alertEmployee, periodSummaries]);
 
   if (isLoading) {
     return <div className="p-6">Carregando férias...</div>;
@@ -191,38 +228,14 @@ export default function VacationManagement() {
     );
   }
 
-  const handleNewVacation = () => {
+  const handleProgramVacation = (employee: any) => {
     setEditingVacationId(null);
-    setFormData(emptyForm);
-    setShowForm(true);
-  };
-
-  const handleEdit = (vacation: any) => {
-    setEditingVacationId(vacation.id);
     setFormData({
-      employeeId: vacation.employeeId,
-      periodId: vacation.periodId,
-      startDate: vacation.startDate,
-      vacationDays: vacation.vacationDays,
-      bonusDays: vacation.bonusDays,
-      status: vacation.status,
-      notes: vacation.notes ?? "",
+      ...emptyForm,
+      employeeId: employee.id,
+      periodId: "",
     });
     setShowForm(true);
-  };
-
-  const handleView = (vacation: any) => {
-    setViewingVacation(vacation);
-  };
-
-  const handleDelete = (vacation: any) => {
-    const confirmed = window.confirm(
-      "Deseja excluir o lançamento de férias do funcionário selecionado?",
-    );
-
-    if (!confirmed) return;
-
-    deleteVacation.mutate({ id: vacation.id });
   };
 
   const handleSave = () => {
@@ -253,9 +266,7 @@ export default function VacationManagement() {
   };
 
   const mutationError =
-    createVacation.error?.message ||
-    updateVacation.error?.message ||
-    deleteVacation.error?.message;
+    createVacation.error?.message || updateVacation.error?.message;
 
   const isSaving = createVacation.isPending || updateVacation.isPending;
 
@@ -263,49 +274,83 @@ export default function VacationManagement() {
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Férias</h2>
-
-        <button
-          onClick={handleNewVacation}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Férias
-        </button>
       </div>
 
-      {periodAlerts.length > 0 && (
-        <div className="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 p-4">
-          <div className="flex items-center gap-2 text-yellow-800 font-semibold mb-3">
-            <AlertTriangle className="w-5 h-5" />
-            Alertas de vencimento de férias
-          </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-gray-300">
+              <th className="text-left py-3 px-4">Funcionário</th>
+              <th className="text-left py-3 px-4">Cargo</th>
+              <th className="text-left py-3 px-4">Setor</th>
+              <th className="text-left py-3 px-4">Situação</th>
+              <th className="text-center py-3 px-4">Ações</th>
+            </tr>
+          </thead>
 
-          <div className="space-y-2 text-sm">
-            {periodAlerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={`rounded p-3 ${
-                  alert.isExpired
-                    ? "bg-red-50 border border-red-200 text-red-700"
-                    : "bg-yellow-50 border border-yellow-200 text-yellow-800"
-                }`}
-              >
-                <strong>{alert.employeeName}</strong> — Período{" "}
-                <strong>{alert.periodNumber}</strong>
-                {" · "}
-                saldo restante: <strong>{alert.remainingDays}</strong> dias
-                {" · "}
-                conceder até: <strong>{formatDate(alert.grantedUntil)}</strong>
-                {alert.isExpired ? (
-                  <> — período vencido</>
-                ) : (
-                  <> — vence em {alert.daysUntilExpiration} dias</>
-                )}
-              </div>
+          <tbody>
+            {employeeVacationSummary.map((item) => (
+              <tr key={item.employee.id} className="border-b border-gray-200">
+                <td className="py-4 px-4 font-medium">
+                  {item.employee.fullName}
+                </td>
+                <td className="py-4 px-4">{item.employee.jobTitle}</td>
+                <td className="py-4 px-4">{item.employee.department}</td>
+                <td className="py-4 px-4">
+                  <span
+                    className={`px-2 py-1 rounded text-sm ${
+                      item.expiredCount > 0
+                        ? "bg-red-100 text-red-700"
+                        : item.nearExpirationCount > 0
+                        ? "bg-yellow-100 text-yellow-700"
+                        : item.availablePeriods > 0
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {item.vacationStatus}
+                  </span>
+                </td>
+                <td className="py-4 px-4">
+                  <div className="flex justify-center gap-3">
+                    <button
+                      onClick={() => setViewingEmployee(item.employee)}
+                      className="text-blue-600 hover:text-blue-800"
+                      title="Visualizar períodos"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => handleProgramVacation(item.employee)}
+                      className="text-green-600 hover:text-green-800"
+                      title="Programar férias"
+                    >
+                      <CalendarPlus className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => setAlertEmployee(item.employee)}
+                      className="text-yellow-600 hover:text-yellow-800"
+                      title="Avisos"
+                    >
+                      <Bell className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
             ))}
-          </div>
-        </div>
-      )}
+
+            {employeeVacationSummary.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-gray-500">
+                  Nenhum funcionário encontrado.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {showForm && (
         <div
@@ -318,7 +363,7 @@ export default function VacationManagement() {
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
-                {editingVacationId ? "Editar Férias" : "Cadastrar Férias"}
+                {editingVacationId ? "Editar Férias" : "Programar Férias"}
               </h3>
 
               <button
@@ -376,12 +421,6 @@ export default function VacationManagement() {
                     </option>
                   ))}
                 </select>
-
-                {formData.employeeId && selectedEmployeePeriods.length === 0 && (
-                  <p className="text-xs text-red-600 mt-1">
-                    Este funcionário não possui períodos disponíveis para gozo no momento.
-                  </p>
-                )}
               </div>
 
               <div>
@@ -530,20 +569,6 @@ export default function VacationManagement() {
                     {formatDate(selectedPeriodSummary.grantedUntil)}
                   </div>
                 </div>
-
-                {selectedPeriodSummary.isExpired && (
-                  <p className="mt-3 text-red-700 font-medium">
-                    Atenção: este período está vencido e ainda possui saldo em aberto.
-                  </p>
-                )}
-
-                {selectedPeriodSummary.isNearExpiration &&
-                  !selectedPeriodSummary.isExpired && (
-                    <p className="mt-3 text-yellow-700 font-medium">
-                      Atenção: este período vence em{" "}
-                      {selectedPeriodSummary.daysUntilExpiration} dias.
-                    </p>
-                  )}
               </div>
             )}
 
@@ -577,230 +602,151 @@ export default function VacationManagement() {
         </div>
       )}
 
-      {viewingVacation && (
+      {viewingEmployee && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setViewingVacation(null)}
+          onClick={() => setViewingEmployee(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6 relative max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-xl w-full max-w-5xl p-6 relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
-                Detalhes das Férias
+                Períodos de férias — {viewingEmployee.fullName}
               </h3>
 
               <button
-                onClick={() => setViewingVacation(null)}
+                onClick={() => setViewingEmployee(null)}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <strong>Funcionário:</strong>
-                <p>
-                  {employees.find((e) => e.id === viewingVacation.employeeId)
-                    ?.fullName ?? "-"}
-                </p>
-              </div>
-
-              <div>
-                <strong>Período:</strong>
-                <p>
-                  {periods.find((p) => p.id === viewingVacation.periodId)
-                    ?.periodNumber ?? "-"}
-                </p>
-              </div>
-
-              <div>
-                <strong>Início:</strong>
-                <p>{formatDate(viewingVacation.startDate)}</p>
-              </div>
-
-              <div>
-                <strong>Fim:</strong>
-                <p>{formatDate(viewingVacation.endDate)}</p>
-              </div>
-
-              <div>
-                <strong>Dias de férias:</strong>
-                <p>{viewingVacation.vacationDays}</p>
-              </div>
-
-              <div>
-                <strong>Dias de abono:</strong>
-                <p>{viewingVacation.bonusDays}</p>
-              </div>
-
-              <div>
-                <strong>Status:</strong>
-                <p>{viewingVacation.status}</p>
-              </div>
-
-              <div className="md:col-span-2">
-                <strong>Observações:</strong>
-                <p>{viewingVacation.notes || "-"}</p>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="text-left py-3 px-4">Período</th>
+                    <th className="text-left py-3 px-4">Início</th>
+                    <th className="text-left py-3 px-4">Término</th>
+                    <th className="text-left py-3 px-4">Dias</th>
+                    <th className="text-left py-3 px-4">Usados</th>
+                    <th className="text-left py-3 px-4">Em aberto</th>
+                    <th className="text-left py-3 px-4">Conceder até</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periodSummaries
+                    .filter((summary) => summary.employeeId === viewingEmployee.id)
+                    .map((summary) => (
+                      <tr
+                        key={summary.id}
+                        className={`border-b border-gray-200 ${
+                          summary.isExpired
+                            ? "bg-red-50"
+                            : summary.isNearExpiration
+                            ? "bg-yellow-50"
+                            : ""
+                        }`}
+                      >
+                        <td className="py-4 px-4">{summary.periodNumber}</td>
+                        <td className="py-4 px-4">{formatDate(summary.start)}</td>
+                        <td className="py-4 px-4">{formatDate(summary.end)}</td>
+                        <td className="py-4 px-4">{summary.totalDays}</td>
+                        <td className="py-4 px-4">{summary.usedDays}</td>
+                        <td className="py-4 px-4">{summary.remainingDays}</td>
+                        <td className="py-4 px-4">
+                          <div className="flex flex-col">
+                            <span>{formatDate(summary.grantedUntil)}</span>
+                            {summary.isExpired && (
+                              <span className="text-xs text-red-600 font-medium">
+                                Vencido
+                              </span>
+                            )}
+                            {summary.isNearExpiration && !summary.isExpired && (
+                              <span className="text-xs text-yellow-700 font-medium">
+                                Vence em {summary.daysUntilExpiration} dias
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse mb-10">
-          <thead>
-            <tr className="border-b border-gray-300">
-              <th className="text-left py-3 px-4">Funcionário</th>
-              <th className="text-left py-3 px-4">Período</th>
-              <th className="text-left py-3 px-4">Início</th>
-              <th className="text-left py-3 px-4">Fim</th>
-              <th className="text-left py-3 px-4">Dias</th>
-              <th className="text-left py-3 px-4">Abono</th>
-              <th className="text-left py-3 px-4">Status</th>
-              <th className="text-center py-3 px-4">Ações</th>
-            </tr>
-          </thead>
+      {alertEmployee && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setAlertEmployee(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 relative max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Avisos de férias — {alertEmployee.fullName}
+              </h3>
 
-          <tbody>
-            {vacations.map((vacation) => {
-              const employee = employees.find((item) => item.id === vacation.employeeId);
-              const period = periods.find((item) => item.id === vacation.periodId);
-
-              return (
-                <tr key={vacation.id} className="border-b border-gray-200">
-                  <td className="py-4 px-4">{employee?.fullName ?? "-"}</td>
-                  <td className="py-4 px-4">
-                    {period ? `Período ${period.periodNumber}` : "-"}
-                  </td>
-                  <td className="py-4 px-4">{formatDate(vacation.startDate)}</td>
-                  <td className="py-4 px-4">{formatDate(vacation.endDate)}</td>
-                  <td className="py-4 px-4">{vacation.vacationDays}</td>
-                  <td className="py-4 px-4">{vacation.bonusDays}</td>
-                  <td className="py-4 px-4">
-                    <span
-                      className={`px-2 py-1 rounded text-sm ${
-                        vacation.status === "Aprovada"
-                          ? "bg-green-100 text-green-700"
-                          : vacation.status === "Pendente"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {vacation.status}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex justify-center gap-3">
-                      <button
-                        onClick={() => handleView(vacation)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Visualizar"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleEdit(vacation)}
-                        className="text-yellow-600 hover:text-yellow-800"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(vacation)}
-                        className="text-red-600 hover:text-red-800"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-
-            {vacations.length === 0 && (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-gray-500">
-                  Nenhum lançamento de férias encontrado.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <h3 className="text-xl font-bold text-gray-900 mb-4">
-        Controle de períodos
-      </h3>
-
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-gray-300">
-              <th className="text-left py-3 px-4">Funcionário</th>
-              <th className="text-left py-3 px-4">Período</th>
-              <th className="text-left py-3 px-4">Início</th>
-              <th className="text-left py-3 px-4">Término</th>
-              <th className="text-left py-3 px-4">Dias</th>
-              <th className="text-left py-3 px-4">Usados</th>
-              <th className="text-left py-3 px-4">Em aberto</th>
-              <th className="text-left py-3 px-4">Conceder até</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {periodSummaries.map((summary) => (
-              <tr
-                key={summary.id}
-                className={`border-b border-gray-200 ${
-                  summary.isExpired
-                    ? "bg-red-50"
-                    : summary.isNearExpiration
-                    ? "bg-yellow-50"
-                    : ""
-                }`}
+              <button
+                onClick={() => setAlertEmployee(null)}
+                className="text-gray-500 hover:text-gray-700"
               >
-                <td className="py-4 px-4">{summary.employeeName}</td>
-                <td className="py-4 px-4">{summary.periodNumber}</td>
-                <td className="py-4 px-4">{formatDate(summary.start)}</td>
-                <td className="py-4 px-4">{formatDate(summary.end)}</td>
-                <td className="py-4 px-4">{summary.totalDays}</td>
-                <td className="py-4 px-4">{summary.usedDays}</td>
-                <td className="py-4 px-4">{summary.remainingDays}</td>
-                <td className="py-4 px-4">
-                  <div className="flex flex-col">
-                    <span>{formatDate(summary.grantedUntil)}</span>
-                    {summary.isExpired && (
-                      <span className="text-xs text-red-600 font-medium">
-                        Vencido
-                      </span>
-                    )}
-                    {summary.isNearExpiration && !summary.isExpired && (
-                      <span className="text-xs text-yellow-700 font-medium">
-                        Vence em {summary.daysUntilExpiration} dias
-                      </span>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-            {periodSummaries.length === 0 && (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-gray-500">
-                  Nenhum período cadastrado.
-                </td>
-              </tr>
+            {employeeAlerts.length === 0 ? (
+              <div className="text-gray-500">
+                Nenhum aviso de férias para este funcionário.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {employeeAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className={`rounded-lg border p-4 ${
+                      alert.isExpired
+                        ? "bg-red-50 border-red-200 text-red-700"
+                        : "bg-yellow-50 border-yellow-200 text-yellow-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-semibold mb-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Período {alert.periodNumber}
+                    </div>
+
+                    <div className="text-sm space-y-1">
+                      <div>
+                        Aquisitivo: {formatDate(alert.start)} até{" "}
+                        {formatDate(alert.end)}
+                      </div>
+                      <div>Saldo em aberto: {alert.remainingDays} dias</div>
+                      <div>Conceder até: {formatDate(alert.grantedUntil)}</div>
+                      {alert.isExpired ? (
+                        <div className="font-medium">
+                          Situação: período vencido
+                        </div>
+                      ) : (
+                        <div className="font-medium">
+                          Situação: vence em {alert.daysUntilExpiration} dias
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
