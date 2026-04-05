@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye, Edit2, Trash2, Plus, X } from "lucide-react";
+import { Eye, Edit2, Trash2, Plus, X, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 type VacationStatus = "Pendente" | "Aprovada" | "Rejeitada";
@@ -39,6 +39,21 @@ function calculateEndDate(startDate: string, vacationDays: number) {
   const mm = `${date.getMonth() + 1}`.padStart(2, "0");
   const dd = `${date.getDate()}`.padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function diffInDays(fromDate: Date, toDate: Date) {
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const utc1 = Date.UTC(
+    fromDate.getFullYear(),
+    fromDate.getMonth(),
+    fromDate.getDate(),
+  );
+  const utc2 = Date.UTC(
+    toDate.getFullYear(),
+    toDate.getMonth(),
+    toDate.getDate(),
+  );
+  return Math.floor((utc2 - utc1) / msPerDay);
 }
 
 export default function VacationManagement() {
@@ -82,51 +97,87 @@ export default function VacationManagement() {
 
   function closeForm() {
     setShowForm(false);
+    setViewingVacation(null);
     setEditingVacationId(null);
     setFormData(emptyForm);
   }
 
+  const periodSummaries = useMemo(() => {
+    const today = new Date();
+
+    return periods
+      .map((period) => {
+        const employee = employees.find((item) => item.id === period.employeeId);
+
+        const usedDays = vacations
+          .filter(
+            (vacation) =>
+              vacation.periodId === period.id && vacation.status !== "Rejeitada",
+          )
+          .reduce(
+            (total, vacation) => total + vacation.vacationDays + vacation.bonusDays,
+            0,
+          );
+
+        const remainingDays = period.totalDays - usedDays;
+
+        const endDate = new Date(period.end);
+        const availableDate = new Date(endDate);
+        availableDate.setDate(availableDate.getDate() + 1);
+
+        const grantedUntilDate = new Date(period.grantedUntil);
+        const daysUntilExpiration = diffInDays(today, grantedUntilDate);
+
+        const isAvailable = today >= availableDate;
+        const isExpired = daysUntilExpiration < 0 && remainingDays > 0;
+        const isNearExpiration =
+          daysUntilExpiration >= 0 &&
+          daysUntilExpiration <= 60 &&
+          remainingDays > 0;
+
+        return {
+          ...period,
+          employeeName: employee?.fullName ?? "Funcionário não encontrado",
+          usedDays,
+          remainingDays,
+          availableDate,
+          isAvailable,
+          isExpired,
+          isNearExpiration,
+          daysUntilExpiration,
+        };
+      })
+      .sort((a, b) => {
+        if (a.employeeName !== b.employeeName) {
+          return a.employeeName.localeCompare(b.employeeName);
+        }
+        return a.periodNumber - b.periodNumber;
+      });
+  }, [periods, vacations, employees]);
+
   const selectedEmployeePeriods = useMemo(() => {
     if (!formData.employeeId) return [];
-    return periods.filter((period) => period.employeeId === Number(formData.employeeId));
-  }, [formData.employeeId, periods]);
 
-  const selectedPeriod = useMemo(() => {
+    return periodSummaries
+      .filter((period) => period.employeeId === Number(formData.employeeId))
+      .filter((period) => period.isAvailable && period.remainingDays > 0)
+      .sort((a, b) => a.periodNumber - b.periodNumber);
+  }, [formData.employeeId, periodSummaries]);
+
+  const selectedPeriodSummary = useMemo(() => {
     if (!formData.periodId) return null;
-    return periods.find((period) => period.id === Number(formData.periodId)) ?? null;
-  }, [formData.periodId, periods]);
+    return periodSummaries.find((item) => item.id === Number(formData.periodId)) ?? null;
+  }, [formData.periodId, periodSummaries]);
 
   const currentEndDate = useMemo(() => {
     return calculateEndDate(formData.startDate, formData.vacationDays);
   }, [formData.startDate, formData.vacationDays]);
 
-  const periodSummaries = useMemo(() => {
-    return periods.map((period) => {
-      const employee = employees.find((item) => item.id === period.employeeId);
-
-      const usedDays = vacations
-        .filter(
-          (vacation) =>
-            vacation.periodId === period.id && vacation.status !== "Rejeitada",
-        )
-        .reduce(
-          (total, vacation) => total + vacation.vacationDays + vacation.bonusDays,
-          0,
-        );
-
-      return {
-        ...period,
-        employeeName: employee?.fullName ?? "Funcionário não encontrado",
-        usedDays,
-        remainingDays: period.totalDays - usedDays,
-      };
-    });
-  }, [periods, vacations, employees]);
-
-  const selectedPeriodSummary = useMemo(() => {
-    if (!selectedPeriod) return null;
-    return periodSummaries.find((item) => item.id === selectedPeriod.id) ?? null;
-  }, [selectedPeriod, periodSummaries]);
+  const periodAlerts = useMemo(() => {
+    return periodSummaries.filter(
+      (period) => period.isExpired || period.isNearExpiration,
+    );
+  }, [periodSummaries]);
 
   if (isLoading) {
     return <div className="p-6">Carregando férias...</div>;
@@ -166,7 +217,7 @@ export default function VacationManagement() {
 
   const handleDelete = (vacation: any) => {
     const confirmed = window.confirm(
-      `Deseja excluir o lançamento de férias do funcionário selecionado?`,
+      "Deseja excluir o lançamento de férias do funcionário selecionado?",
     );
 
     if (!confirmed) return;
@@ -221,6 +272,40 @@ export default function VacationManagement() {
           Nova Férias
         </button>
       </div>
+
+      {periodAlerts.length > 0 && (
+        <div className="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+          <div className="flex items-center gap-2 text-yellow-800 font-semibold mb-3">
+            <AlertTriangle className="w-5 h-5" />
+            Alertas de vencimento de férias
+          </div>
+
+          <div className="space-y-2 text-sm">
+            {periodAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={`rounded p-3 ${
+                  alert.isExpired
+                    ? "bg-red-50 border border-red-200 text-red-700"
+                    : "bg-yellow-50 border border-yellow-200 text-yellow-800"
+                }`}
+              >
+                <strong>{alert.employeeName}</strong> — Período{" "}
+                <strong>{alert.periodNumber}</strong>
+                {" · "}
+                saldo restante: <strong>{alert.remainingDays}</strong> dias
+                {" · "}
+                conceder até: <strong>{formatDate(alert.grantedUntil)}</strong>
+                {alert.isExpired ? (
+                  <> — período vencido</>
+                ) : (
+                  <> — vence em {alert.daysUntilExpiration} dias</>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div
@@ -287,10 +372,16 @@ export default function VacationManagement() {
                   <option value="">Selecione</option>
                   {selectedEmployeePeriods.map((period) => (
                     <option key={period.id} value={period.id}>
-                      {`Período ${period.periodNumber}`}
+                      {`Período ${period.periodNumber} (${period.remainingDays} dias disponíveis)`}
                     </option>
                   ))}
                 </select>
+
+                {formData.employeeId && selectedEmployeePeriods.length === 0 && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Este funcionário não possui períodos disponíveis para gozo no momento.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -400,8 +491,16 @@ export default function VacationManagement() {
             </div>
 
             {selectedPeriodSummary && (
-              <div className="mt-6 rounded-lg border bg-blue-50 p-4 text-sm">
-                <div className="font-semibold text-blue-900 mb-2">
+              <div
+                className={`mt-6 rounded-lg border p-4 text-sm ${
+                  selectedPeriodSummary.isExpired
+                    ? "bg-red-50 border-red-200"
+                    : selectedPeriodSummary.isNearExpiration
+                    ? "bg-yellow-50 border-yellow-200"
+                    : "bg-blue-50 border-blue-200"
+                }`}
+              >
+                <div className="font-semibold mb-2">
                   Resumo do período selecionado
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -431,6 +530,20 @@ export default function VacationManagement() {
                     {formatDate(selectedPeriodSummary.grantedUntil)}
                   </div>
                 </div>
+
+                {selectedPeriodSummary.isExpired && (
+                  <p className="mt-3 text-red-700 font-medium">
+                    Atenção: este período está vencido e ainda possui saldo em aberto.
+                  </p>
+                )}
+
+                {selectedPeriodSummary.isNearExpiration &&
+                  !selectedPeriodSummary.isExpired && (
+                    <p className="mt-3 text-yellow-700 font-medium">
+                      Atenção: este período vence em{" "}
+                      {selectedPeriodSummary.daysUntilExpiration} dias.
+                    </p>
+                  )}
               </div>
             )}
 
@@ -643,7 +756,16 @@ export default function VacationManagement() {
 
           <tbody>
             {periodSummaries.map((summary) => (
-              <tr key={summary.id} className="border-b border-gray-200">
+              <tr
+                key={summary.id}
+                className={`border-b border-gray-200 ${
+                  summary.isExpired
+                    ? "bg-red-50"
+                    : summary.isNearExpiration
+                    ? "bg-yellow-50"
+                    : ""
+                }`}
+              >
                 <td className="py-4 px-4">{summary.employeeName}</td>
                 <td className="py-4 px-4">{summary.periodNumber}</td>
                 <td className="py-4 px-4">{formatDate(summary.start)}</td>
@@ -651,7 +773,21 @@ export default function VacationManagement() {
                 <td className="py-4 px-4">{summary.totalDays}</td>
                 <td className="py-4 px-4">{summary.usedDays}</td>
                 <td className="py-4 px-4">{summary.remainingDays}</td>
-                <td className="py-4 px-4">{formatDate(summary.grantedUntil)}</td>
+                <td className="py-4 px-4">
+                  <div className="flex flex-col">
+                    <span>{formatDate(summary.grantedUntil)}</span>
+                    {summary.isExpired && (
+                      <span className="text-xs text-red-600 font-medium">
+                        Vencido
+                      </span>
+                    )}
+                    {summary.isNearExpiration && !summary.isExpired && (
+                      <span className="text-xs text-yellow-700 font-medium">
+                        Vence em {summary.daysUntilExpiration} dias
+                      </span>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
 
