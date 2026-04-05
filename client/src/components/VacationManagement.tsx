@@ -56,6 +56,10 @@ function diffInDays(fromDate: Date, toDate: Date) {
   return Math.floor((utc2 - utc1) / msPerDay);
 }
 
+function getPeriodReference(start: string, end: string) {
+  return `${new Date(start).getFullYear()}/${new Date(end).getFullYear()}`;
+}
+
 export default function VacationManagement() {
   const utils = trpc.useUtils();
 
@@ -151,6 +155,7 @@ export default function VacationManagement() {
           isNearExpiration,
           daysUntilExpiration,
           isRelevant,
+          periodReference: getPeriodReference(period.start, period.end),
         };
       })
       .filter((period) => period.isRelevant)
@@ -242,6 +247,9 @@ export default function VacationManagement() {
         return {
           ...vacation,
           periodNumber: period?.periodNumber ?? "-",
+          periodReference: period
+            ? getPeriodReference(period.start, period.end)
+            : "-",
         };
       })
       .sort(
@@ -451,7 +459,7 @@ export default function VacationManagement() {
                   <option value="">Selecione</option>
                   {selectedEmployeePeriods.map((period) => (
                     <option key={period.id} value={period.id}>
-                      {`Período ${period.periodNumber} (${period.remainingDays} dias disponíveis)`}
+                      {`Período ${period.periodNumber} — ${period.periodReference} (${period.remainingDays} dias disponíveis)`}
                     </option>
                   ))}
                 </select>
@@ -588,6 +596,10 @@ export default function VacationManagement() {
                     {selectedPeriodSummary.periodNumber}
                   </div>
                   <div>
+                    <span className="font-medium">Referência:</span>{" "}
+                    {selectedPeriodSummary.periodReference}
+                  </div>
+                  <div>
                     <span className="font-medium">Total:</span>{" "}
                     {selectedPeriodSummary.totalDays} dias
                   </div>
@@ -598,11 +610,6 @@ export default function VacationManagement() {
                   <div>
                     <span className="font-medium">Disponíveis:</span>{" "}
                     {selectedPeriodSummary.remainingDays} dias
-                  </div>
-                  <div>
-                    <span className="font-medium">Aquisitivo:</span>{" "}
-                    {formatDate(selectedPeriodSummary.start)} até{" "}
-                    {formatDate(selectedPeriodSummary.end)}
                   </div>
                   <div>
                     <span className="font-medium">Conceder até:</span>{" "}
@@ -673,6 +680,7 @@ export default function VacationManagement() {
                 <thead>
                   <tr className="border-b border-gray-300">
                     <th className="text-left py-3 px-4">Período</th>
+                    <th className="text-left py-3 px-4">Referência</th>
                     <th className="text-left py-3 px-4">Início</th>
                     <th className="text-left py-3 px-4">Término</th>
                     <th className="text-left py-3 px-4">Dias</th>
@@ -696,6 +704,7 @@ export default function VacationManagement() {
                         }`}
                       >
                         <td className="py-4 px-4">{summary.periodNumber}</td>
+                        <td className="py-4 px-4">{summary.periodReference}</td>
                         <td className="py-4 px-4">{formatDate(summary.start)}</td>
                         <td className="py-4 px-4">{formatDate(summary.end)}</td>
                         <td className="py-4 px-4">{summary.totalDays}</td>
@@ -723,7 +732,7 @@ export default function VacationManagement() {
                     (summary) => summary.employeeId === viewingEmployee.id,
                   ).length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-500">
+                      <td colSpan={8} className="py-8 text-center text-gray-500">
                         Nenhum período válido encontrado para este funcionário.
                       </td>
                     </tr>
@@ -741,6 +750,7 @@ export default function VacationManagement() {
                 <thead>
                   <tr className="border-b border-gray-300">
                     <th className="text-left py-3 px-4">Período</th>
+                    <th className="text-left py-3 px-4">Referência</th>
                     <th className="text-left py-3 px-4">Início</th>
                     <th className="text-left py-3 px-4">Fim</th>
                     <th className="text-left py-3 px-4">Dias</th>
@@ -753,6 +763,7 @@ export default function VacationManagement() {
                   {viewingEmployeeHistory.map((vacation) => (
                     <tr key={vacation.id} className="border-b border-gray-200">
                       <td className="py-4 px-4">{vacation.periodNumber}</td>
+                      <td className="py-4 px-4">{vacation.periodReference}</td>
                       <td className="py-4 px-4">{formatDate(vacation.startDate)}</td>
                       <td className="py-4 px-4">{formatDate(vacation.endDate)}</td>
                       <td className="py-4 px-4">{vacation.vacationDays}</td>
@@ -776,7 +787,7 @@ export default function VacationManagement() {
 
                   {viewingEmployeeHistory.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-500">
+                      <td colSpan={8} className="py-8 text-center text-gray-500">
                         Nenhum lançamento de férias encontrado para este funcionário.
                       </td>
                     </tr>
@@ -827,7 +838,7 @@ export default function VacationManagement() {
                   >
                     <div className="flex items-center gap-2 font-semibold mb-2">
                       <AlertTriangle className="w-4 h-4" />
-                      Período {alert.periodNumber}
+                      {`Período ${alert.periodNumber} — ${alert.periodReference}`}
                     </div>
 
                     <div className="text-sm space-y-1">
