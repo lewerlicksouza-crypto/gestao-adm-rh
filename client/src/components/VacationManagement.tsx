@@ -100,7 +100,7 @@ export default function VacationManagement() {
 
   const relevantLimitDate = useMemo(() => {
     const now = new Date();
-    return new Date(now.getFullYear() + 1, 11, 31); // 31/12 do próximo ano
+    return new Date(now.getFullYear() + 1, 11, 31);
   }, []);
 
   const periodSummaries = useMemo(() => {
@@ -231,6 +231,24 @@ export default function VacationManagement() {
         (period.isExpired || period.isNearExpiration),
     );
   }, [alertEmployee, periodSummaries]);
+
+  const viewingEmployeeHistory = useMemo(() => {
+    if (!viewingEmployee) return [];
+
+    return vacations
+      .filter((vacation) => vacation.employeeId === viewingEmployee.id)
+      .map((vacation) => {
+        const period = periods.find((p) => p.id === vacation.periodId);
+        return {
+          ...vacation,
+          periodNumber: period?.periodNumber ?? "-",
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
+      );
+  }, [viewingEmployee, vacations, periods]);
 
   if (isLoading) {
     return <div className="p-6">Carregando férias...</div>;
@@ -630,12 +648,12 @@ export default function VacationManagement() {
           onClick={() => setViewingEmployee(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-5xl p-6 relative max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-xl w-full max-w-6xl p-6 relative max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
-                Períodos de férias — {viewingEmployee.fullName}
+                Períodos e histórico de férias — {viewingEmployee.fullName}
               </h3>
 
               <button
@@ -646,7 +664,11 @@ export default function VacationManagement() {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            <h4 className="text-lg font-semibold text-gray-900 mb-3">
+              Controle de períodos
+            </h4>
+
+            <div className="overflow-x-auto mb-8">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-gray-300">
@@ -703,6 +725,59 @@ export default function VacationManagement() {
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-gray-500">
                         Nenhum período válido encontrado para este funcionário.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <h4 className="text-lg font-semibold text-gray-900 mb-3">
+              Histórico de lançamentos
+            </h4>
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="text-left py-3 px-4">Período</th>
+                    <th className="text-left py-3 px-4">Início</th>
+                    <th className="text-left py-3 px-4">Fim</th>
+                    <th className="text-left py-3 px-4">Dias</th>
+                    <th className="text-left py-3 px-4">Abono</th>
+                    <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-left py-3 px-4">Observações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewingEmployeeHistory.map((vacation) => (
+                    <tr key={vacation.id} className="border-b border-gray-200">
+                      <td className="py-4 px-4">{vacation.periodNumber}</td>
+                      <td className="py-4 px-4">{formatDate(vacation.startDate)}</td>
+                      <td className="py-4 px-4">{formatDate(vacation.endDate)}</td>
+                      <td className="py-4 px-4">{vacation.vacationDays}</td>
+                      <td className="py-4 px-4">{vacation.bonusDays}</td>
+                      <td className="py-4 px-4">
+                        <span
+                          className={`px-2 py-1 rounded text-sm ${
+                            vacation.status === "Aprovada"
+                              ? "bg-green-100 text-green-700"
+                              : vacation.status === "Pendente"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {vacation.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">{vacation.notes || "-"}</td>
+                    </tr>
+                  ))}
+
+                  {viewingEmployeeHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-gray-500">
+                        Nenhum lançamento de férias encontrado para este funcionário.
                       </td>
                     </tr>
                   )}
