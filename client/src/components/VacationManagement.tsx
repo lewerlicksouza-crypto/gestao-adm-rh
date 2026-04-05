@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Eye, CalendarPlus, Bell, X, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
-type VacationStatus = "Pendente" | "Aprovada" | "Rejeitada";
+type VacationStatus = "Pendente" | "Gozada" | "Programada";
 
 type VacationFormData = {
   employeeId: number | "";
