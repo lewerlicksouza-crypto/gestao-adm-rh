@@ -92,9 +92,16 @@ export default function VacationManagement() {
 
   function closeForm() {
     setShowForm(false);
+    setViewingEmployee(null);
+    setAlertEmployee(null);
     setEditingVacationId(null);
     setFormData(emptyForm);
   }
+
+  const relevantLimitDate = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear() + 1, 11, 31); // 31/12 do próximo ano
+  }, []);
 
   const periodSummaries = useMemo(() => {
     const today = new Date();
@@ -129,6 +136,8 @@ export default function VacationManagement() {
           daysUntilExpiration <= 60 &&
           remainingDays > 0;
 
+        const isRelevant = grantedUntilDate <= relevantLimitDate;
+
         return {
           ...period,
           employeeName: employee?.fullName ?? "Funcionário não encontrado",
@@ -141,10 +150,17 @@ export default function VacationManagement() {
           isExpired,
           isNearExpiration,
           daysUntilExpiration,
+          isRelevant,
         };
       })
-      .sort((a, b) => a.periodNumber - b.periodNumber);
-  }, [periods, vacations, employees]);
+      .filter((period) => period.isRelevant)
+      .sort((a, b) => {
+        if (a.employeeName !== b.employeeName) {
+          return a.employeeName.localeCompare(b.employeeName);
+        }
+        return a.periodNumber - b.periodNumber;
+      });
+  }, [periods, vacations, employees, relevantLimitDate]);
 
   const employeeVacationSummary = useMemo(() => {
     return employees.map((employee) => {
@@ -167,7 +183,7 @@ export default function VacationManagement() {
             new Date(a.grantedUntil).getTime() - new Date(b.grantedUntil).getTime(),
         )[0];
 
-      let vacationStatus = "Sem períodos disponíveis";
+      let vacationStatus = "Sem períodos relevantes";
 
       if (expiredCount > 0) {
         vacationStatus = `${expiredCount} vencido(s)`;
@@ -421,6 +437,12 @@ export default function VacationManagement() {
                     </option>
                   ))}
                 </select>
+
+                {formData.employeeId && selectedEmployeePeriods.length === 0 && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Este funcionário não possui períodos válidos e disponíveis no momento.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -674,6 +696,16 @@ export default function VacationManagement() {
                         </td>
                       </tr>
                     ))}
+
+                  {periodSummaries.filter(
+                    (summary) => summary.employeeId === viewingEmployee.id,
+                  ).length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-gray-500">
+                        Nenhum período válido encontrado para este funcionário.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
