@@ -13,7 +13,7 @@ type Employee = {
   notes: string;
 };
 
-type VacationStatus = "Pendente" | "Aprovada" | "Rejeitada";
+type VacationStatus = "Programado" | "Aprovada" | "Rejeitada";
 
 type VacationPeriod = {
   id: number;
