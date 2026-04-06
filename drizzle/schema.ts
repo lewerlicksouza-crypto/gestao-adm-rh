@@ -1,39 +1,67 @@
 import {
   mysqlTable,
-  varchar,
   int,
+  varchar,
   text,
+  date,
   timestamp,
-  enum as mysqlEnum,
 } from "drizzle-orm/mysql-core";
 
 export const employees = mysqlTable("employees", {
-  id: int().primaryKey().autoincrement(),
+  id: int("id").autoincrement().primaryKey(),
+
   fullName: varchar("full_name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
+  cpf: varchar("cpf", { length: 20 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 20 }),
-  position: varchar("position", { length: 255 }).notNull(),
-  company: varchar("company", { length: 255 }),
-  status: mysqlEnum("status", ["active", "inactive"]).default("active"),
+
+  jobTitle: varchar("job_title", { length: 255 }).notNull(),
+  department: varchar("department", { length: 255 }),
+
+  admissionDate: date("admission_date"),
+
+  status: varchar("status", { length: 20 }).default("Ativo"),
+
+  notes: text("notes"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+
+export const vacationPeriods = mysqlTable("vacation_periods", {
+  id: int("id").autoincrement().primaryKey(),
+
+  employeeId: int("employee_id").notNull(),
+
+  periodNumber: int("period_number").notNull(),
+
+  start: date("start").notNull(),
+  end: date("end").notNull(),
+
+  totalDays: int("total_days").default(30),
+
+  grantedUntil: date("granted_until").notNull(),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 export const vacations = mysqlTable("vacations", {
-  id: int().primaryKey().autoincrement(),
-  employeeId: int("employee_id")
-    .notNull()
-    .references(() => employees.id, { onDelete: "cascade" }),
-  startDate: varchar("start_date", { length: 10 }).notNull(),
-  endDate: varchar("end_date", { length: 10 }).notNull(),
-  type: mysqlEnum("type", ["30", "20+10", "15+15"]).notNull(),
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending"),
+  id: int("id").autoincrement().primaryKey(),
+
+  employeeId: int("employee_id").notNull(),
+  periodId: int("period_id").notNull(),
+
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+
+  vacationDays: int("vacation_days").notNull(),
+  bonusDays: int("bonus_days").default(0),
+
+  status: varchar("status", { length: 20 }).default("Pendente"),
+
   notes: text("notes"),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
-
-export type Employee = typeof employees.$inferSelect;
-export type NewEmployee = typeof employees.$inferInsert;
-export type Vacation = typeof vacations.$inferSelect;
-export type NewVacation = typeof vacations.$inferInsert;
