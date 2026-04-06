@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Clock3,
   CheckCircle2,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "../components/Button";
 import EmployeeManagement from "../components/EmployeeManagement";
@@ -86,15 +87,21 @@ export default function AdminDashboard() {
       };
     });
 
-    const programmedVacations = vacations.filter(
-      (vacation) => vacation.status === "Pendente" || vacation.status === "Aprovada",
-    ).length;
+    const concededVacations = vacations.filter((vacation) => {
+      const startDate = new Date(vacation.startDate);
+      return vacation.status === "Aprovada" && startDate <= today;
+    }).length;
+
+    const programmedVacations = vacations.filter((vacation) => {
+      const startDate = new Date(vacation.startDate);
+      return vacation.status === "Aprovada" && startDate > today;
+    }).length;
 
     const expiringVacations = periodSummaries.filter(
       (period) => period.isNearExpiration,
     );
 
-    const expiredVacations = periodSummaries.filter(
+    const pendingVacations = periodSummaries.filter(
       (period) => period.isExpired,
     );
 
@@ -108,9 +115,10 @@ export default function AdminDashboard() {
 
     return {
       totalEmployees: employees.length,
+      concededVacations,
       programmedVacations,
       expiringVacationsCount: expiringVacations.length,
-      expiredVacationsCount: expiredVacations.length,
+      pendingVacationsCount: pendingVacations.length,
       upcomingExpirations,
     };
   }, [employees, periods, vacations]);
@@ -178,12 +186,12 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
                   <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm text-gray-500">
-                          Total de funcionários
+                          Funcionários
                         </p>
                         <h3 className="text-3xl font-bold text-gray-900">
                           {dashboardData.totalEmployees}
@@ -197,20 +205,34 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm text-gray-500">
-                          Férias programadas
+                          Concedidas
                         </p>
                         <h3 className="text-3xl font-bold text-gray-900">
-                          {dashboardData.programmedVacations}
+                          {dashboardData.concededVacations}
                         </h3>
                       </div>
                       <CheckCircle2 className="w-10 h-10 text-green-600" />
                     </div>
                   </div>
 
+                  <div className="bg-white rounded-lg shadow p-6 border-l-4 border-cyan-600">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-sm text-gray-500">
+                          Programadas
+                        </p>
+                        <h3 className="text-3xl font-bold text-gray-900">
+                          {dashboardData.programmedVacations}
+                        </h3>
+                      </div>
+                      <CalendarDays className="w-10 h-10 text-cyan-600" />
+                    </div>
+                  </div>
+
                   <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <p className="text-sm text-gray-500">Férias a vencer</p>
+                        <p className="text-sm text-gray-500">A vencer</p>
                         <h3 className="text-3xl font-bold text-gray-900">
                           {dashboardData.expiringVacationsCount}
                         </h3>
@@ -222,9 +244,9 @@ export default function AdminDashboard() {
                   <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-600">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <p className="text-sm text-gray-500">Férias vencidas</p>
+                        <p className="text-sm text-gray-500">Pendentes</p>
                         <h3 className="text-3xl font-bold text-gray-900">
-                          {dashboardData.expiredVacationsCount}
+                          {dashboardData.pendingVacationsCount}
                         </h3>
                       </div>
                       <AlertTriangle className="w-10 h-10 text-red-600" />
@@ -280,9 +302,9 @@ export default function AdminDashboard() {
                                   }`}
                                 >
                                   {item.isExpired
-                                    ? "Vencido"
+                                    ? "Pendente"
                                     : item.daysUntilExpiration <= 60
-                                    ? `Vence em ${item.daysUntilExpiration} dias`
+                                    ? "A vencer"
                                     : "No prazo"}
                                 </span>
                               </td>
