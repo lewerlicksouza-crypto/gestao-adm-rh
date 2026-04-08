@@ -1,328 +1,242 @@
 import { useMemo, useState } from "react";
 import {
+  LayoutDashboard,
   Users,
   Calendar,
-  Home,
+  FileText,
   LogOut,
-  AlertTriangle,
+  CheckCircle,
   Clock3,
-  CheckCircle2,
-  CalendarDays,
+  AlertTriangle,
 } from "lucide-react";
-import { Button } from "../components/Button";
 import EmployeeManagement from "../components/EmployeeManagement";
 import VacationManagement from "../components/VacationManagement";
-import { trpc } from "@/lib/trpc";
+import ContractManagement from "../components/ContractManagement";
 
-type DashboardTab = "home" | "employees" | "vacations";
+type Employee = {
+  id: number;
+  fullName: string;
+  cpf: string;
+  email: string;
+  phone: string;
+  jobTitle: string;
+  department: string;
+  admissionDate: string;
+  status: "Ativo" | "Inativo";
+  notes: string;
+};
 
-function formatDate(date: string) {
-  if (!date) return "-";
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year}`;
-}
+type VacationPeriod = {
+  id: number;
+  employeeId: number;
+  periodNumber: number;
+  start: string;
+  end: string;
+  totalDays: number;
+  grantedUntil: string;
+};
 
-function diffInDays(fromDate: Date, toDate: Date) {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const utc1 = Date.UTC(
-    fromDate.getFullYear(),
-    fromDate.getMonth(),
-    fromDate.getDate(),
-  );
-  const utc2 = Date.UTC(
-    toDate.getFullYear(),
-    toDate.getMonth(),
-    toDate.getDate(),
-  );
-  return Math.floor((utc2 - utc1) / msPerDay);
-}
+type VacationRecord = {
+  id: number;
+  employeeId: number;
+  periodId: number;
+  startDate: string;
+  endDate: string;
+  vacationDays: number;
+  bonusDays: number;
+  status: "Programado" | "Aprovada" | "Rejeitada" | "Pendente";
+  notes: string;
+};
+
+type Section = "dashboard" | "employees" | "vacations" | "contracts";
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<DashboardTab>("home");
+  const [activeSection, setActiveSection] = useState<Section>("dashboard");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
+  const [vacations, setVacations] = useState<VacationRecord[]>([]);
 
-  const { data: employees = [], isLoading: employeesLoading } =
-    trpc.employees.list.useQuery();
-
-  const { data: periods = [], isLoading: periodsLoading } =
-    trpc.vacationPeriods.list.useQuery();
-
-  const { data: vacations = [], isLoading: vacationsLoading } =
-    trpc.vacations.list.useQuery();
-
-  const isLoading = employeesLoading || periodsLoading || vacationsLoading;
-
-  const dashboardData = useMemo(() => {
+  const stats = useMemo(() => {
     const today = new Date();
 
-    const periodSummaries = periods.map((period) => {
-      const employee = employees.find((item) => item.id === period.employeeId);
+    const approvedCount = vacations.filter(
+      (vacation) => vacation.status === "Aprovada",
+    ).length;
 
-      const usedDays = vacations
-        .filter(
-          (vacation) =>
-            vacation.periodId === period.id && vacation.status !== "Rejeitada",
-        )
-        .reduce(
-          (total, vacation) => total + vacation.vacationDays + vacation.bonusDays,
-          0,
-        );
+    const scheduledCount = vacations.filter(
+      (vacation) => vacation.status === "Programado",
+    ).length;
 
-      const remainingDays = period.totalDays - usedDays;
-      const grantedUntilDate = new Date(period.grantedUntil);
-      const daysUntilExpiration = diffInDays(today, grantedUntilDate);
+    const pendingCount = vacations.filter(
+      (vacation) => vacation.status === "Pendente",
+    ).length;
 
-      const isExpired = daysUntilExpiration < 0 && remainingDays > 0;
-      const isNearExpiration =
-        daysUntilExpiration >= 0 &&
-        daysUntilExpiration <= 60 &&
-        remainingDays > 0;
+    const expiringCount = vacationPeriods.filter((period) => {
+      const grantedUntil = new Date(period.grantedUntil);
+      const diffInMs = grantedUntil.getTime() - today.getTime();
+      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
 
-      return {
-        ...period,
-        employeeName: employee?.fullName ?? "Funcionário não encontrado",
-        remainingDays,
-        isExpired,
-        isNearExpiration,
-        daysUntilExpiration,
-      };
-    });
-
-    const concededVacations = vacations.filter((vacation) => {
-      const startDate = new Date(vacation.startDate);
-      return vacation.status === "Aprovada" && startDate <= today;
+      return diffInDays >= 0 && diffInDays <= 60;
     }).length;
-
-    const programmedVacations = vacations.filter((vacation) => {
-      const startDate = new Date(vacation.startDate);
-      return vacation.status === "Aprovada" && startDate > today;
-    }).length;
-
-    const expiringVacations = periodSummaries.filter(
-      (period) => period.isNearExpiration,
-    );
-
-    const pendingVacations = periodSummaries.filter(
-      (period) => period.isExpired,
-    );
-
-    const upcomingExpirations = [...periodSummaries]
-      .filter((period) => period.remainingDays > 0)
-      .sort(
-        (a, b) =>
-          new Date(a.grantedUntil).getTime() - new Date(b.grantedUntil).getTime(),
-      )
-      .slice(0, 5);
 
     return {
-      totalEmployees: employees.length,
-      concededVacations,
-      programmedVacations,
-      expiringVacationsCount: expiringVacations.length,
-      pendingVacationsCount: pendingVacations.length,
-      upcomingExpirations,
+      employees: employees.length,
+      approved: approvedCount,
+      scheduled: scheduledCount,
+      expiring: expiringCount,
+      pending: pendingCount,
     };
-  }, [employees, periods, vacations]);
+  }, [employees, vacationPeriods, vacations]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      <div className="w-64 bg-gray-900 text-white p-6 shadow-lg">
-        <h1 className="text-2xl font-bold mb-8">Admin</h1>
+      <aside className="w-72 bg-[#06122b] text-white flex flex-col">
+        <div className="px-7 py-8">
+          <h1 className="text-4xl font-bold">Admin</h1>
+        </div>
 
-        <nav className="space-y-3">
+        <nav className="px-4 flex-1 space-y-3">
           <button
-            onClick={() => setActiveTab("home")}
-            className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${
-              activeTab === "home" ? "bg-blue-600" : "hover:bg-gray-800"
+            onClick={() => setActiveSection("dashboard")}
+            className={`w-full flex items-center gap-3 rounded-xl px-5 py-4 text-left text-2xl transition ${
+              activeSection === "dashboard"
+                ? "bg-blue-600 text-white"
+                : "text-white hover:bg-white/10"
             }`}
           >
-            <Home className="w-5 h-5" />
+            <LayoutDashboard size={26} />
             Dashboard
           </button>
 
           <button
-            onClick={() => setActiveTab("employees")}
-            className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${
-              activeTab === "employees" ? "bg-blue-600" : "hover:bg-gray-800"
+            onClick={() => setActiveSection("employees")}
+            className={`w-full flex items-center gap-3 rounded-xl px-5 py-4 text-left text-2xl transition ${
+              activeSection === "employees"
+                ? "bg-blue-600 text-white"
+                : "text-white hover:bg-white/10"
             }`}
           >
-            <Users className="w-5 h-5" />
+            <Users size={26} />
             Funcionários
           </button>
 
           <button
-            onClick={() => setActiveTab("vacations")}
-            className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${
-              activeTab === "vacations" ? "bg-blue-600" : "hover:bg-gray-800"
+            onClick={() => setActiveSection("vacations")}
+            className={`w-full flex items-center gap-3 rounded-xl px-5 py-4 text-left text-2xl transition ${
+              activeSection === "vacations"
+                ? "bg-blue-600 text-white"
+                : "text-white hover:bg-white/10"
             }`}
           >
-            <Calendar className="w-5 h-5" />
+            <Calendar size={26} />
             Férias
           </button>
+
+          <button
+            onClick={() => setActiveSection("contracts")}
+            className={`w-full flex items-center gap-3 rounded-xl px-5 py-4 text-left text-2xl transition ${
+              activeSection === "contracts"
+                ? "bg-blue-600 text-white"
+                : "text-white hover:bg-white/10"
+            }`}
+          >
+            <FileText size={26} />
+            Contratos
+          </button>
+
+          <div className="pt-8">
+            <div className="border-t border-white/20" />
+          </div>
         </nav>
 
-        <div className="mt-8 pt-8 border-t border-gray-700">
-          <Button className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700">
-            <LogOut className="w-4 h-4" />
+        <div className="p-6">
+          <button className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl px-5 py-4 text-2xl flex items-center justify-center gap-3 transition">
+            <LogOut size={24} />
             Sair
-          </Button>
+          </button>
         </div>
-      </div>
+      </aside>
 
-      <div className="flex-1 p-8">
-        {activeTab === "home" && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+      <main className="flex-1 p-9">
+        {activeSection === "dashboard" && (
+          <div className="space-y-8">
+            <section className="bg-white rounded-2xl shadow-sm p-8">
+              <h2 className="text-5xl font-bold text-slate-900 mb-4">
                 Bem-vindo ao Painel Admin
               </h2>
-              <p className="text-gray-600">
+              <p className="text-3xl text-slate-600">
                 Acompanhe os principais indicadores de funcionários e férias.
               </p>
-            </div>
+            </section>
 
-            {isLoading ? (
-              <div className="bg-white rounded-lg shadow p-8 text-gray-600">
-                Carregando indicadores...
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-blue-600 flex items-center justify-between">
+                <div>
+                  <p className="text-3xl text-slate-600 mb-3">Funcionários</p>
+                  <p className="text-6xl font-bold text-slate-900">
+                    {stats.employees}
+                  </p>
+                </div>
+                <Users size={52} className="text-blue-600" />
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
-                  <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Funcionários
-                        </p>
-                        <h3 className="text-3xl font-bold text-gray-900">
-                          {dashboardData.totalEmployees}
-                        </h3>
-                      </div>
-                      <Users className="w-10 h-10 text-blue-600" />
-                    </div>
-                  </div>
 
-                  <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Concedidas
-                        </p>
-                        <h3 className="text-3xl font-bold text-gray-900">
-                          {dashboardData.concededVacations}
-                        </h3>
-                      </div>
-                      <CheckCircle2 className="w-10 h-10 text-green-600" />
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg shadow p-6 border-l-4 border-cyan-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Programadas
-                        </p>
-                        <h3 className="text-3xl font-bold text-gray-900">
-                          {dashboardData.programmedVacations}
-                        </h3>
-                      </div>
-                      <CalendarDays className="w-10 h-10 text-cyan-600" />
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">A vencer</p>
-                        <h3 className="text-3xl font-bold text-gray-900">
-                          {dashboardData.expiringVacationsCount}
-                        </h3>
-                      </div>
-                      <Clock3 className="w-10 h-10 text-yellow-500" />
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Pendentes</p>
-                        <h3 className="text-3xl font-bold text-gray-900">
-                          {dashboardData.pendingVacationsCount}
-                        </h3>
-                      </div>
-                      <AlertTriangle className="w-10 h-10 text-red-600" />
-                    </div>
-                  </div>
+              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-green-600 flex items-center justify-between">
+                <div>
+                  <p className="text-3xl text-slate-600 mb-3">Concedidas</p>
+                  <p className="text-6xl font-bold text-slate-900">
+                    {stats.approved}
+                  </p>
                 </div>
+                <CheckCircle size={52} className="text-green-600" />
+              </div>
 
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    Próximos vencimentos
-                  </h3>
-
-                  {dashboardData.upcomingExpirations.length === 0 ? (
-                    <p className="text-gray-500">
-                      Nenhum período com saldo em aberto encontrado.
-                    </p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b border-gray-300">
-                            <th className="text-left py-3 px-4">Funcionário</th>
-                            <th className="text-left py-3 px-4">Período</th>
-                            <th className="text-left py-3 px-4">Saldo</th>
-                            <th className="text-left py-3 px-4">Conceder até</th>
-                            <th className="text-left py-3 px-4">Situação</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {dashboardData.upcomingExpirations.map((item) => (
-                            <tr
-                              key={item.id}
-                              className="border-b border-gray-200"
-                            >
-                              <td className="py-4 px-4">{item.employeeName}</td>
-                              <td className="py-4 px-4">
-                                Período {item.periodNumber}
-                              </td>
-                              <td className="py-4 px-4">
-                                {item.remainingDays} dias
-                              </td>
-                              <td className="py-4 px-4">
-                                {formatDate(item.grantedUntil)}
-                              </td>
-                              <td className="py-4 px-4">
-                                <span
-                                  className={`px-2 py-1 rounded text-sm ${
-                                    item.isExpired
-                                      ? "bg-red-100 text-red-700"
-                                      : item.isNearExpiration
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : "bg-green-100 text-green-700"
-                                  }`}
-                                >
-                                  {item.isExpired
-                                    ? "Pendente"
-                                    : item.daysUntilExpiration <= 60
-                                    ? "A vencer"
-                                    : "No prazo"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-sky-500 flex items-center justify-between">
+                <div>
+                  <p className="text-3xl text-slate-600 mb-3">Programadas</p>
+                  <p className="text-6xl font-bold text-slate-900">
+                    {stats.scheduled}
+                  </p>
                 </div>
-              </>
-            )}
+                <Calendar size={52} className="text-sky-500" />
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-amber-500 flex items-center justify-between">
+                <div>
+                  <p className="text-3xl text-slate-600 mb-3">A vencer</p>
+                  <p className="text-6xl font-bold text-slate-900">
+                    {stats.expiring}
+                  </p>
+                </div>
+                <Clock3 size={52} className="text-amber-500" />
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-red-600 flex items-center justify-between md:col-span-1">
+                <div>
+                  <p className="text-3xl text-slate-600 mb-3">Pendentes</p>
+                  <p className="text-6xl font-bold text-slate-900">
+                    {stats.pending}
+                  </p>
+                </div>
+                <AlertTriangle size={52} className="text-red-600" />
+              </div>
+            </section>
           </div>
         )}
 
-        {activeTab === "employees" && <EmployeeManagement />}
-        {activeTab === "vacations" && <VacationManagement />}
-      </div>
+        {activeSection === "employees" && (
+          <EmployeeManagement onEmployeesChange={setEmployees} />
+        )}
+
+        {activeSection === "vacations" && (
+          <VacationManagement
+            employees={employees}
+            onVacationPeriodsChange={setVacationPeriods}
+            onVacationsChange={setVacations}
+          />
+        )}
+
+        {activeSection === "contracts" && <ContractManagement />}
+      </main>
     </div>
   );
 }
