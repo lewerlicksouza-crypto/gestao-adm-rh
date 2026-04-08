@@ -1,10 +1,11 @@
+import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   schema: "./drizzle/schema.ts",
   out: "./drizzle/migrations",
-  driver: "mysql2",
+  dialect: "mysql",
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL || "mysql://localhost:3306/cartao_virtual",
+    url: process.env.DATABASE_URL!,
   },
 });
