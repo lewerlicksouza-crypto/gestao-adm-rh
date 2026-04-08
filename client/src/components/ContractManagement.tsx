@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 
 type Contract = {
@@ -21,20 +21,58 @@ type ContractFormItem = {
   unitValue: string;
 };
 
+const mockContracts: Contract[] = [
+  {
+    id: 1,
+    contractNumber: "001",
+    year: 2026,
+    clientName: "Município de Comendador Levy Gasparian",
+    cnpj: "39.559.395/0001-38",
+    object: "Licenciamento de sistemas de gestão pública municipal.",
+    status: "Vigente",
+    currentTerm: {
+      totalValue: "3500.00",
+      endDate: "2026-12-31",
+    },
+  },
+  {
+    id: 2,
+    contractNumber: "002",
+    year: 2026,
+    clientName: "Câmara Municipal de Paraíba do Sul",
+    cnpj: "29.138.385/0001-30",
+    object: "Fornecimento de sistemas administrativos e suporte técnico.",
+    status: "Vigente",
+    currentTerm: {
+      totalValue: "2200.00",
+      endDate: "2026-12-31",
+    },
+  },
+  {
+    id: 3,
+    contractNumber: "015",
+    year: 2025,
+    clientName: "Município de Santa Maria Madalena",
+    cnpj: "28.741.736/0001-85",
+    object: "Implantação, treinamento e manutenção de sistemas.",
+    status: "Encerrado",
+    currentTerm: {
+      totalValue: "4800.00",
+      endDate: "2025-12-31",
+    },
+  },
+];
+
 function parseMoney(value: string) {
   if (!value) return 0;
-
   const normalized = value.replace(/\./g, "").replace(",", ".");
   const parsed = Number(normalized);
-
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 function formatMoney(value?: string) {
   if (!value) return "-";
-
   const numberValue = Number(value);
-
   if (Number.isNaN(numberValue)) return value;
 
   return numberValue.toLocaleString("pt-BR", {
@@ -46,9 +84,10 @@ function formatMoney(value?: string) {
 export default function ContractManagement() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [usingMockData, setUsingMockData] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     contractNumber: "",
@@ -77,10 +116,14 @@ export default function ContractManagement() {
       }
 
       setContracts(Array.isArray(data) ? data : []);
-    } catch (err: any) {
+      setUsingMockData(false);
+    } catch (err) {
       console.error(err);
-      setErrorMessage(err?.message || "Erro ao carregar contratos.");
-      setContracts([]);
+      setContracts(mockContracts);
+      setUsingMockData(true);
+      setErrorMessage(
+        "Exibindo dados fictícios para visualização até a configuração do banco de contratos.",
+      );
     } finally {
       setLoading(false);
     }
@@ -141,7 +184,6 @@ export default function ContractManagement() {
       installments: 12,
       items: [{ description: "", quantity: 1, unitValue: "" }],
     });
-    setErrorMessage("");
   }
 
   function closeModal() {
@@ -153,74 +195,41 @@ export default function ContractManagement() {
     e.preventDefault();
     setErrorMessage("");
 
-    if (!form.contractNumber.trim()) {
-      setErrorMessage("Informe o número do contrato.");
+    if (usingMockData) {
+      const totalValue = form.items.reduce((total, item) => {
+        return total + Number(item.quantity) * parseMoney(item.unitValue);
+      }, 0);
+
+      const fakeNewContract: Contract = {
+        id: Date.now(),
+        contractNumber: form.contractNumber,
+        year: form.year,
+        clientName: form.clientName,
+        cnpj: form.cnpj,
+        object: form.object,
+        status: "Vigente",
+        currentTerm: {
+          totalValue: totalValue.toFixed(2),
+          endDate: form.endDate || "-",
+        },
+      };
+
+      setContracts((prev) => [fakeNewContract, ...prev]);
+      closeModal();
       return;
     }
-
-    if (!form.clientName.trim()) {
-      setErrorMessage("Informe o município/cliente.");
-      return;
-    }
-
-    if (!form.cnpj.trim()) {
-      setErrorMessage("Informe o CNPJ.");
-      return;
-    }
-
-    if (!form.object.trim()) {
-      setErrorMessage("Informe o objeto.");
-      return;
-    }
-
-    if (!form.signatureDate) {
-      setErrorMessage("Informe a data de assinatura.");
-      return;
-    }
-
-    if (!form.startDate) {
-      setErrorMessage("Informe a vigência inicial.");
-      return;
-    }
-
-    if (!form.endDate) {
-      setErrorMessage("Informe a vigência final.");
-      return;
-    }
-
-    if (!form.installments || form.installments < 1 || form.installments > 12) {
-      setErrorMessage("A quantidade de parcelas deve ser entre 1 e 12.");
-      return;
-    }
-
-    const normalizedItems = form.items.map((item) => ({
-      description: item.description.trim(),
-      quantity: Number(item.quantity),
-      unitValue: parseMoney(item.unitValue),
-    }));
-
-    if (normalizedItems.some((item) => !item.description)) {
-      setErrorMessage("Preencha a descrição de todos os itens.");
-      return;
-    }
-
-    if (normalizedItems.some((item) => !item.quantity || item.quantity <= 0)) {
-      setErrorMessage("A quantidade dos itens deve ser maior que zero.");
-      return;
-    }
-
-    if (normalizedItems.some((item) => item.unitValue < 0)) {
-      setErrorMessage("O valor unitário dos itens é inválido.");
-      return;
-    }
-
-    const payload = {
-      ...form,
-      items: normalizedItems,
-    };
 
     try {
       setSaving(true);
+
+      const payload = {
+        ...form,
+        items: form.items.map((item) => ({
+          description: item.description.trim(),
+          quantity: Number(item.quantity),
+          unitValue: parseMoney(item.unitValue),
+        })),
+      };
 
       const res = await fetch("/api/contracts", {
         method: "POST",
@@ -246,6 +255,8 @@ export default function ContractManagement() {
     }
   }
 
+  const totalContracts = useMemo(() => contracts.length, [contracts]);
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
@@ -259,7 +270,9 @@ export default function ContractManagement() {
 
           <button
             onClick={() => {
-              setErrorMessage("");
+              setErrorMessage(usingMockData
+                ? "Modo visual ativo: os contratos cadastrados agora são fictícios e servem apenas para pré-visualização."
+                : "");
               setShowForm(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition"
@@ -269,11 +282,32 @@ export default function ContractManagement() {
         </div>
       </div>
 
-      {errorMessage && !showForm && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-          {errorMessage}
+      {(errorMessage || usingMockData) && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm">
+          {errorMessage || "Exibindo dados fictícios para visualização."}
         </div>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          <p className="text-sm text-slate-500">Total de contratos</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{totalContracts}</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          <p className="text-sm text-slate-500">Vigentes</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">
+            {contracts.filter((item) => item.status === "Vigente").length}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          <p className="text-sm text-slate-500">Encerrados</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">
+            {contracts.filter((item) => item.status === "Encerrado").length}
+          </p>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200">
@@ -293,39 +327,21 @@ export default function ContractManagement() {
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Nº
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Ano
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Município
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    CNPJ
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Valor atual
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Vigência final
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Status
-                  </th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Nº</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Ano</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Município</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">CNPJ</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Valor atual</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Vigência final</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {contracts.map((contract) => (
                   <tr key={contract.id} className="border-t border-slate-200">
-                    <td className="px-4 py-3 text-slate-700">
-                      {contract.contractNumber}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{contract.contractNumber}</td>
                     <td className="px-4 py-3 text-slate-700">{contract.year}</td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {contract.clientName}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{contract.clientName}</td>
                     <td className="px-4 py-3 text-slate-700">{contract.cnpj}</td>
                     <td className="px-4 py-3 text-slate-700">
                       {formatMoney(contract.currentTerm?.totalValue)}
@@ -334,7 +350,13 @@ export default function ContractManagement() {
                       {contract.currentTerm?.endDate ?? "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs font-semibold">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                          contract.status === "Vigente"
+                            ? "bg-blue-50 text-blue-700"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
                         {contract.status}
                       </span>
                     </td>
@@ -369,9 +391,9 @@ export default function ContractManagement() {
             </div>
 
             <div className="p-6">
-              {errorMessage && (
-                <div className="mb-5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-                  {errorMessage}
+              {usingMockData && (
+                <div className="mb-5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm">
+                  Você está em modo de visualização. Ao salvar, o contrato será exibido na lista de forma fictícia.
                 </div>
               )}
 
@@ -460,7 +482,7 @@ export default function ContractManagement() {
                     Objeto
                   </label>
                   <textarea
-                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm min-h-[100px]"
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm min-h-[90px]"
                     value={form.object}
                     onChange={(e) => handleChange("object", e.target.value)}
                   />
@@ -519,66 +541,105 @@ export default function ContractManagement() {
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    {form.items.map((item, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end border border-slate-200 rounded-xl p-3"
-                      >
-                        <div className="md:col-span-6">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm border-separate border-spacing-y-2">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2">
                             Descrição
-                          </label>
-                          <input
-                            className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
-                            value={item.description}
-                            onChange={(e) =>
-                              handleItemChange(index, "description", e.target.value)
-                            }
-                          />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[140px]">
                             Quantidade
-                          </label>
-                          <input
-                            type="number"
-                            className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              handleItemChange(index, "quantity", Number(e.target.value))
-                            }
-                          />
-                        </div>
-
-                        <div className="md:col-span-3">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[180px]">
                             Valor unitário
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="Ex.: 500,00"
-                            className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
-                            value={item.unitValue}
-                            onChange={(e) =>
-                              handleItemChange(index, "unitValue", e.target.value)
-                            }
-                          />
-                        </div>
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[160px]">
+                            Total
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[100px]">
+                            Ação
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.items.map((item, index) => {
+                          const total =
+                            Number(item.quantity || 0) * parseMoney(item.unitValue);
 
-                        <div className="md:col-span-1">
-                          <button
-                            type="button"
-                            onClick={() => removeItem(index)}
-                            className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium px-3 py-2 rounded-xl transition"
-                          >
-                            X
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                          return (
+                            <tr key={index}>
+                              <td className="px-2">
+                                <input
+                                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                                  value={item.description}
+                                  onChange={(e) =>
+                                    handleItemChange(index, "description", e.target.value)
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-2">
+                                <input
+                                  type="number"
+                                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                                  value={item.quantity}
+                                  onChange={(e) =>
+                                    handleItemChange(
+                                      index,
+                                      "quantity",
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-2">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="Ex.: 500,00"
+                                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                                  value={item.unitValue}
+                                  onChange={(e) =>
+                                    handleItemChange(index, "unitValue", e.target.value)
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-2 text-slate-700 font-medium">
+                                {formatMoney(total.toFixed(2))}
+                              </td>
+
+                              <td className="px-2">
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(index)}
+                                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium px-3 py-2 rounded-xl transition"
+                                >
+                                  X
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm">
+                      <span className="text-slate-500 mr-2">Valor total do contrato:</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatMoney(
+                          form.items
+                            .reduce((total, item) => {
+                              return total + Number(item.quantity || 0) * parseMoney(item.unitValue);
+                            }, 0)
+                            .toFixed(2),
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -588,7 +649,11 @@ export default function ContractManagement() {
                     disabled={saving}
                     className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition"
                   >
-                    {saving ? "Salvando..." : "Salvar contrato"}
+                    {usingMockData
+                      ? "Salvar visualização"
+                      : saving
+                      ? "Salvando..."
+                      : "Salvar contrato"}
                   </button>
 
                   <button
