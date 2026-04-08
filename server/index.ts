@@ -506,6 +506,10 @@ app.post("/api/contracts/:id/terms", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Servidor rodando na porta 3000");
-});
+export default app;
+
+if (process.env.NODE_ENV !== "production") {
+  app.listen(3000, () => {
+    console.log("Servidor rodando na porta 3000");
+  });
+}
