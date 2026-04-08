@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { X, Eye, Pencil, FilePlus2 } from "lucide-react";
+import {
+  X,
+  Eye,
+  Pencil,
+  FilePlus2,
+  Trash2,
+  Search,
+  Filter,
+} from "lucide-react";
 
 type Contract = {
   id: number;
@@ -53,6 +61,9 @@ type ContractFormItem = {
   quantity: number;
   unitValue: string;
 };
+
+type ViewTab = "general" | "items" | "terms";
+type StatusFilter = "Todos" | "Vigente" | "Encerrado";
 
 const mockContracts: Contract[] = [
   {
@@ -282,6 +293,12 @@ function getTermLabel(term?: { termType?: string; termNumber?: number }) {
   return `${term.termNumber}º Termo Aditivo`;
 }
 
+function getStatusBadgeClass(status: string) {
+  return status === "Vigente"
+    ? "bg-blue-50 text-blue-700"
+    : "bg-slate-100 text-slate-700";
+}
+
 export default function ContractManagement() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(false);
@@ -295,6 +312,10 @@ export default function ContractManagement() {
   const [saving, setSaving] = useState(false);
   const [editingContractId, setEditingContractId] = useState<number | null>(null);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [viewTab, setViewTab] = useState<ViewTab>("general");
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("Todos");
 
   const [form, setForm] = useState({
     contractNumber: "",
@@ -387,6 +408,7 @@ export default function ContractManagement() {
   function closeViewModal() {
     setShowViewModal(false);
     setSelectedContract(null);
+    setViewTab("general");
   }
 
   function closeTermModal() {
@@ -469,6 +491,7 @@ export default function ContractManagement() {
 
   function openViewModal(contract: Contract) {
     setSelectedContract(contract);
+    setViewTab("general");
     setShowViewModal(true);
   }
 
@@ -476,6 +499,20 @@ export default function ContractManagement() {
     setSelectedContract(contract);
     resetTermForm(contract);
     setShowTermModal(true);
+  }
+
+  function handleDeleteContract(contractId: number) {
+    const confirmed = window.confirm(
+      "Deseja excluir este contrato fictício da visualização?",
+    );
+
+    if (!confirmed) return;
+
+    setContracts((prev) => prev.filter((item) => item.id !== contractId));
+
+    if (selectedContract?.id === contractId) {
+      closeViewModal();
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -687,7 +724,28 @@ export default function ContractManagement() {
     closeTermModal();
   }
 
-  const totalContracts = useMemo(() => contracts.length, [contracts]);
+  const filteredContracts = useMemo(() => {
+    return contracts.filter((contract) => {
+      const matchesSearch =
+        !search.trim() ||
+        contract.contractNumber.toLowerCase().includes(search.toLowerCase()) ||
+        contract.clientName.toLowerCase().includes(search.toLowerCase()) ||
+        contract.cnpj.toLowerCase().includes(search.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "Todos" || contract.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [contracts, search, statusFilter]);
+
+  const summary = useMemo(() => {
+    return {
+      total: filteredContracts.length,
+      vigentes: filteredContracts.filter((item) => item.status === "Vigente").length,
+      encerrados: filteredContracts.filter((item) => item.status === "Encerrado").length,
+    };
+  }, [filteredContracts]);
 
   return (
     <div className="space-y-6">
@@ -715,24 +773,66 @@ export default function ContractManagement() {
         </div>
       )}
 
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="relative">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              className="w-full border border-slate-300 rounded-xl pl-10 pr-3 py-2.5 text-sm"
+              placeholder="Buscar por número, município ou CNPJ"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="relative">
+            <Filter
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <select
+              className="w-full border border-slate-300 rounded-xl pl-10 pr-3 py-2.5 text-sm appearance-none bg-white"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            >
+              <option value="Todos">Todos os status</option>
+              <option value="Vigente">Vigente</option>
+              <option value="Encerrado">Encerrado</option>
+            </select>
+          </div>
+
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("Todos");
+              }}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2.5 rounded-xl transition"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <p className="text-sm text-slate-500">Total de contratos</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">{totalContracts}</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{summary.total}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <p className="text-sm text-slate-500">Vigentes</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">
-            {contracts.filter((item) => item.status === "Vigente").length}
-          </p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{summary.vigentes}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
           <p className="text-sm text-slate-500">Encerrados</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">
-            {contracts.filter((item) => item.status === "Encerrado").length}
-          </p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{summary.encerrados}</p>
         </div>
       </div>
 
@@ -745,9 +845,9 @@ export default function ContractManagement() {
 
         {loading ? (
           <div className="p-6 text-sm text-slate-500">Carregando contratos...</div>
-        ) : contracts.length === 0 ? (
+        ) : filteredContracts.length === 0 ? (
           <div className="p-6 text-sm text-slate-500">
-            Nenhum contrato cadastrado até o momento.
+            Nenhum contrato encontrado com os filtros informados.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -765,7 +865,7 @@ export default function ContractManagement() {
                 </tr>
               </thead>
               <tbody>
-                {contracts.map((contract) => (
+                {filteredContracts.map((contract) => (
                   <tr key={contract.id} className="border-t border-slate-200">
                     <td className="px-4 py-3 text-slate-700">{contract.contractNumber}</td>
                     <td className="px-4 py-3 text-slate-700">{contract.year}</td>
@@ -779,11 +879,9 @@ export default function ContractManagement() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          contract.status === "Vigente"
-                            ? "bg-blue-50 text-blue-700"
-                            : "bg-slate-100 text-slate-700"
-                        }`}
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(
+                          contract.status,
+                        )}`}
                       >
                         {contract.status}
                       </span>
@@ -812,6 +910,14 @@ export default function ContractManagement() {
                         >
                           <FilePlus2 size={14} />
                           + Termo
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteContract(contract.id)}
+                          className="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-medium px-3 py-2 rounded-lg transition"
+                        >
+                          <Trash2 size={14} />
+                          Excluir
                         </button>
                       </div>
                     </td>
@@ -1136,7 +1242,7 @@ export default function ContractManagement() {
                   Visualização do Contrato
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Dados gerais, termo atual, itens e histórico.
+                  Dados gerais, itens e histórico.
                 </p>
               </div>
 
@@ -1150,194 +1256,244 @@ export default function ContractManagement() {
             </div>
 
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                  <p className="text-xs text-slate-500">Nº do contrato</p>
-                  <p className="text-base font-semibold text-slate-900 mt-1">
-                    {selectedContract.contractNumber}
-                  </p>
-                </div>
+              <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+                <button
+                  type="button"
+                  onClick={() => setViewTab("general")}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    viewTab === "general"
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Dados gerais
+                </button>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                  <p className="text-xs text-slate-500">Ano</p>
-                  <p className="text-base font-semibold text-slate-900 mt-1">
-                    {selectedContract.year}
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewTab("items")}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    viewTab === "items"
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Itens
+                </button>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                  <p className="text-xs text-slate-500">Status</p>
-                  <p className="text-base font-semibold text-slate-900 mt-1">
-                    {selectedContract.status}
-                  </p>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                  <p className="text-xs text-slate-500">Índice</p>
-                  <p className="text-base font-semibold text-slate-900 mt-1">
-                    {selectedContract.reajustIndex ?? "-"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                <h4 className="text-base font-semibold text-slate-900 mb-4">
-                  Dados do contrato
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-500">Município / cliente:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {selectedContract.clientName}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">CNPJ:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {selectedContract.cnpj}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">Data de assinatura:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {selectedContract.signatureDate ?? "-"}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">Objeto:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {selectedContract.object}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                <h4 className="text-base font-semibold text-slate-900 mb-4">
-                  Termo atual
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-500">Tipo:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {getTermLabel(selectedContract.currentTerm)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">Valor global:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {formatMoney(selectedContract.currentTerm?.totalValue)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">Parcelas:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {selectedContract.currentTerm?.installments ?? "-"}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">Valor da parcela:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {formatMoney(selectedContract.currentTerm?.installmentValue)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">Vigência inicial:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {selectedContract.currentTerm?.startDate ?? "-"}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500">Vigência final:</span>
-                    <div className="font-medium text-slate-900 mt-1">
-                      {selectedContract.currentTerm?.endDate ?? "-"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                <h4 className="text-base font-semibold text-slate-900 mb-4">
-                  Itens do contrato
-                </h4>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                          Descrição
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                          Quantidade
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                          Valor unitário
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(selectedContract.items ?? []).map((item) => (
-                        <tr key={item.id} className="border-t border-slate-200">
-                          <td className="px-4 py-3 text-slate-700">{item.description}</td>
-                          <td className="px-4 py-3 text-slate-700">{item.quantity}</td>
-                          <td className="px-4 py-3 text-slate-700">
-                            {formatMoney(item.unitValue)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-700">
-                            {formatMoney(item.totalValue)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                <h4 className="text-base font-semibold text-slate-900 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setViewTab("terms")}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    viewTab === "terms"
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
                   Histórico de termos
-                </h4>
+                </button>
+              </div>
 
-                <div className="space-y-3">
-                  {(selectedContract.terms ?? []).map((term) => (
-                    <div
-                      key={term.id}
-                      className="border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
-                    >
+              {viewTab === "general" && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Nº do contrato</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.contractNumber}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Ano</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.year}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Status</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.status}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Índice</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.reajustIndex ?? "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                    <h4 className="text-base font-semibold text-slate-900 mb-4">
+                      Dados do contrato
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="font-semibold text-slate-900">
-                          {term.termType === "initial"
-                            ? "Termo Inicial"
-                            : `${term.termNumber}º Termo Aditivo`}
-                        </p>
-                        <p className="text-sm text-slate-500 mt-1">
-                          {term.startDate} até {term.endDate}
-                        </p>
+                        <span className="text-slate-500">Município / cliente:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.clientName}
+                        </div>
                       </div>
 
-                      <div className="text-sm text-slate-700">
-                        <div>Valor: {formatMoney(term.totalValue)}</div>
-                        <div>Parcelas: {term.installments}</div>
-                        <div>Reajuste: {term.reajustPercent}%</div>
+                      <div>
+                        <span className="text-slate-500">CNPJ:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.cnpj}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Data de assinatura:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.signatureDate ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Objeto:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.object}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                    <h4 className="text-base font-semibold text-slate-900 mb-4">
+                      Termo atual
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-500">Tipo:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {getTermLabel(selectedContract.currentTerm)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Valor global:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {formatMoney(selectedContract.currentTerm?.totalValue)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Parcelas:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.installments ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Valor da parcela:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {formatMoney(selectedContract.currentTerm?.installmentValue)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Vigência inicial:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.startDate ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Vigência final:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.endDate ?? "-"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {viewTab === "items" && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                  <h4 className="text-base font-semibold text-slate-900 mb-4">
+                    Itens do contrato
+                  </h4>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Descrição
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Quantidade
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Valor unitário
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(selectedContract.items ?? []).map((item) => (
+                          <tr key={item.id} className="border-t border-slate-200">
+                            <td className="px-4 py-3 text-slate-700">{item.description}</td>
+                            <td className="px-4 py-3 text-slate-700">{item.quantity}</td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {formatMoney(item.unitValue)}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {formatMoney(item.totalValue)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {viewTab === "terms" && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                  <h4 className="text-base font-semibold text-slate-900 mb-4">
+                    Histórico de termos
+                  </h4>
+
+                  <div className="space-y-3">
+                    {(selectedContract.terms ?? []).map((term) => (
+                      <div
+                        key={term.id}
+                        className="border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                      >
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {term.termType === "initial"
+                              ? "Termo Inicial"
+                              : `${term.termNumber}º Termo Aditivo`}
+                          </p>
+                          <p className="text-sm text-slate-500 mt-1">
+                            {term.startDate} até {term.endDate}
+                          </p>
+                          <p className="text-sm text-slate-500 mt-1">
+                            Data do termo: {term.termDate}
+                          </p>
+                        </div>
+
+                        <div className="text-sm text-slate-700">
+                          <div>Valor: {formatMoney(term.totalValue)}</div>
+                          <div>Parcelas: {term.installments}</div>
+                          <div>Reajuste: {term.reajustPercent}%</div>
+                          <div>Índice: {term.reajustIndex}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button
