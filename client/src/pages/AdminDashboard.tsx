@@ -107,7 +107,7 @@ export default function AdminDashboard() {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab("contracts-publi")}
+                  onClick={() => setActiveTab("contracts-publica")}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition text-left text-sm ${
                     activeTab === "contracts-publi"
                       ? "bg-blue-600 text-white"
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
         {activeTab === "vacations" && <VacationManagement />}
 
         {(activeTab === "contracts-conta" ||
-          activeTab === "contracts-publi" ||
+          activeTab === "contracts-publica" ||
           activeTab === "contracts-idel") && (
           <ContractManagement companyName={currentCompany} />
         )}
