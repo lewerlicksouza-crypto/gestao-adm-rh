@@ -747,6 +747,9 @@ export default function ContractManagement() {
     };
   }, [filteredContracts]);
 
+  const additiveTerms =
+    selectedContract?.terms?.filter((term) => term.termType === "additive") ?? [];
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
@@ -1486,35 +1489,39 @@ export default function ContractManagement() {
                     Histórico de termos
                   </h4>
 
-                  <div className="space-y-3">
-                    {(selectedContract.terms ?? []).map((term) => (
-                      <div
-                        key={term.id}
-                        className="border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
-                      >
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {term.termType === "initial"
-                              ? "Termo Inicial"
-                              : `${term.termNumber}º Termo Aditivo`}
-                          </p>
-                          <p className="text-sm text-slate-500 mt-1">
-                            {term.startDate} até {term.endDate}
-                          </p>
-                          <p className="text-sm text-slate-500 mt-1">
-                            Data do termo: {term.termDate}
-                          </p>
-                        </div>
+                  {additiveTerms.length === 0 ? (
+                    <div className="text-sm text-slate-500">
+                      Nenhum termo aditivo cadastrado até o momento.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {additiveTerms.map((term) => (
+                        <div
+                          key={term.id}
+                          className="border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                        >
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              {term.termNumber}º Termo Aditivo
+                            </p>
+                            <p className="text-sm text-slate-500 mt-1">
+                              {term.startDate} até {term.endDate}
+                            </p>
+                            <p className="text-sm text-slate-500 mt-1">
+                              Data do termo: {term.termDate}
+                            </p>
+                          </div>
 
-                        <div className="text-sm text-slate-700">
-                          <div>Valor: {formatMoney(term.totalValue)}</div>
-                          <div>Parcelas: {term.installments}</div>
-                          <div>Reajuste: {term.reajustPercent}%</div>
-                          <div>Índice: {term.reajustIndex}</div>
+                          <div className="text-sm text-slate-700">
+                            <div>Valor: {formatMoney(term.totalValue)}</div>
+                            <div>Parcelas: {term.installments}</div>
+                            <div>Reajuste: {term.reajustPercent}%</div>
+                            <div>Índice: {term.reajustIndex}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
