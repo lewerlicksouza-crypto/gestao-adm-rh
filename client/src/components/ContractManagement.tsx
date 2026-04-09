@@ -7,10 +7,6 @@ import {
   Trash2,
   Search,
   Filter,
-  FileText,
-  Landmark,
-  CalendarDays,
-  BadgeDollarSign,
 } from "lucide-react";
 
 type Contract = {
@@ -873,4 +869,929 @@ export default function ContractManagement() {
               </thead>
               <tbody>
                 {filteredContracts.map((contract) => (
-                  <tr
+                  <tr key={contract.id} className="border-t border-slate-200">
+                    <td className="px-4 py-3 text-slate-700">{contract.contractNumber}</td>
+                    <td className="px-4 py-3 text-slate-700">{contract.year}</td>
+                    <td className="px-4 py-3 text-slate-700">{contract.clientName}</td>
+                    <td className="px-4 py-3 text-slate-700">{contract.cnpj}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {formatMoney(contract.currentTerm?.totalValue)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {contract.currentTerm?.endDate ?? "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadgeClass(
+                          contract.status,
+                        )}`}
+                      >
+                        {contract.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => openViewModal(contract)}
+                          className="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium px-3 py-2 rounded-lg transition"
+                        >
+                          <Eye size={14} />
+                          Ver
+                        </button>
+
+                        <button
+                          onClick={() => openEditModal(contract)}
+                          className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium px-3 py-2 rounded-lg transition"
+                        >
+                          <Pencil size={14} />
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => openTermModal(contract)}
+                          className="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium px-3 py-2 rounded-lg transition"
+                        >
+                          <FilePlus2 size={14} />
+                          + Termo
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteContract(contract.id)}
+                          className="inline-flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-medium px-3 py-2 rounded-lg transition"
+                        >
+                          <Trash2 size={14} />
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  {editingContractId ? "Editar Contrato" : "Cadastro de Contrato"}
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Preencha os dados principais e os itens do contrato.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeFormModal}
+                className="rounded-xl p-2 hover:bg-slate-100 transition"
+              >
+                <X size={20} className="text-slate-600" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {usingMockData && (
+                <div className="mb-5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm">
+                  Você está em modo de visualização. Ao salvar, o contrato será exibido na lista de forma fictícia.
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Nº do contrato
+                    </label>
+                    <input
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.contractNumber}
+                      onChange={(e) => handleChange("contractNumber", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Ano
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.year}
+                      onChange={(e) => handleChange("year", Number(e.target.value))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Índice
+                    </label>
+                    <select
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.reajustIndex}
+                      onChange={(e) => handleChange("reajustIndex", e.target.value)}
+                    >
+                      <option value="IPCA">IPCA</option>
+                      <option value="IGPM">IGPM</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Parcelas
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.installments}
+                      onChange={(e) =>
+                        handleChange("installments", Number(e.target.value))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Município / cliente
+                    </label>
+                    <input
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.clientName}
+                      onChange={(e) => handleChange("clientName", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      CNPJ
+                    </label>
+                    <input
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.cnpj}
+                      onChange={(e) => handleChange("cnpj", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Objeto
+                  </label>
+                  <textarea
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm min-h-[90px]"
+                    value={form.object}
+                    onChange={(e) => handleChange("object", e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Data de assinatura
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.signatureDate}
+                      onChange={(e) => handleChange("signatureDate", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Vigência inicial
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.startDate}
+                      onChange={(e) => handleChange("startDate", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Vigência final
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={form.endDate}
+                      onChange={(e) => handleChange("endDate", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-base font-semibold text-slate-900">
+                      Itens do contrato
+                    </h4>
+
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-3 py-2 rounded-xl transition"
+                    >
+                      + Adicionar item
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm border-separate border-spacing-y-2">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2">
+                            Descrição
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[140px]">
+                            Quantidade
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[180px]">
+                            Valor unitário
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[160px]">
+                            Total
+                          </th>
+                          <th className="text-left text-slate-700 font-semibold px-2 py-2 w-[100px]">
+                            Ação
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.items.map((item, index) => {
+                          const total =
+                            Number(item.quantity || 0) * parseMoney(item.unitValue);
+
+                          return (
+                            <tr key={index}>
+                              <td className="px-2">
+                                <input
+                                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                                  value={item.description}
+                                  onChange={(e) =>
+                                    handleItemChange(index, "description", e.target.value)
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-2">
+                                <input
+                                  type="number"
+                                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                                  value={item.quantity}
+                                  onChange={(e) =>
+                                    handleItemChange(
+                                      index,
+                                      "quantity",
+                                      Number(e.target.value),
+                                    )
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-2">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="Ex.: 500,00"
+                                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                                  value={item.unitValue}
+                                  onChange={(e) =>
+                                    handleItemChange(index, "unitValue", e.target.value)
+                                  }
+                                />
+                              </td>
+
+                              <td className="px-2 text-slate-700 font-medium">
+                                {formatMoney(total.toFixed(2))}
+                              </td>
+
+                              <td className="px-2">
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(index)}
+                                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium px-3 py-2 rounded-xl transition"
+                                >
+                                  X
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm">
+                      <span className="text-slate-500 mr-2">Valor total do contrato:</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatMoney(
+                          form.items
+                            .reduce((total, item) => {
+                              return total + Number(item.quantity || 0) * parseMoney(item.unitValue);
+                            }, 0)
+                            .toFixed(2),
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+                  >
+                    {usingMockData
+                      ? editingContractId
+                        ? "Salvar edição"
+                        : "Salvar visualização"
+                      : saving
+                        ? "Salvando..."
+                        : "Salvar contrato"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={closeFormModal}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showViewModal && selectedContract && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Visualização do Contrato
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Dados gerais, itens e histórico.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeViewModal}
+                className="rounded-xl p-2 hover:bg-slate-100 transition"
+              >
+                <X size={20} className="text-slate-600" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+                <button
+                  type="button"
+                  onClick={() => setViewTab("general")}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    viewTab === "general"
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Dados gerais
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setViewTab("items")}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    viewTab === "items"
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Itens
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setViewTab("terms")}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+                    viewTab === "terms"
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Histórico de termos
+                </button>
+              </div>
+
+              {viewTab === "general" && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Nº do contrato</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.contractNumber}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Ano</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.year}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Status</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.status}
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <p className="text-xs text-slate-500">Índice</p>
+                      <p className="text-base font-semibold text-slate-900 mt-1">
+                        {selectedContract.reajustIndex ?? "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                    <h4 className="text-base font-semibold text-slate-900 mb-4">
+                      Dados do contrato
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-500">Município / cliente:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.clientName}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">CNPJ:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.cnpj}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Data de assinatura:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.signatureDate ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Objeto:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.object}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                    <h4 className="text-base font-semibold text-slate-900 mb-4">
+                      Termo atual
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-500">Tipo:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {getTermLabel(selectedContract.currentTerm)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Número do termo:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.termType === "initial"
+                            ? "0"
+                            : selectedContract.currentTerm?.termNumber ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Índice aplicado:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.reajustIndex ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Percentual:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.reajustPercent ?? "0.00"}%
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Valor global:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {formatMoney(selectedContract.currentTerm?.totalValue)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Parcelas:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.installments ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Valor da parcela:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {formatMoney(selectedContract.currentTerm?.installmentValue)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Vigência inicial:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.startDate ?? "-"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500">Vigência final:</span>
+                        <div className="font-medium text-slate-900 mt-1">
+                          {selectedContract.currentTerm?.endDate ?? "-"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {viewTab === "items" && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                  <h4 className="text-base font-semibold text-slate-900 mb-4">
+                    Itens do contrato
+                  </h4>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Descrição
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Quantidade
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Valor unitário
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                            Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(selectedContract.items ?? []).map((item) => (
+                          <tr key={item.id} className="border-t border-slate-200">
+                            <td className="px-4 py-3 text-slate-700">{item.description}</td>
+                            <td className="px-4 py-3 text-slate-700">{item.quantity}</td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {formatMoney(item.unitValue)}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {formatMoney(item.totalValue)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {viewTab === "terms" && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                  <h4 className="text-base font-semibold text-slate-900 mb-6">
+                    Histórico de termos
+                  </h4>
+
+                  {additiveTerms.length === 0 ? (
+                    <div className="text-sm text-slate-500">
+                      Nenhum termo aditivo cadastrado até o momento.
+                    </div>
+                  ) : (
+                    <div className="relative pl-8">
+                      <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-200" />
+
+                      <div className="space-y-6">
+                        {additiveTerms.map((term) => (
+                          <div key={term.id} className="relative">
+                            <div className="absolute -left-[2px] top-2 w-6 h-6 rounded-full bg-blue-600 border-4 border-white shadow" />
+
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 ml-6">
+                              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                                <div>
+                                  <p className="text-base font-semibold text-slate-900">
+                                    {term.termNumber}º Termo Aditivo
+                                  </p>
+                                  <p className="text-sm text-slate-500 mt-1">
+                                    Vigência: {term.startDate} até {term.endDate}
+                                  </p>
+                                  <p className="text-sm text-slate-500 mt-1">
+                                    Data do termo: {term.termDate}
+                                  </p>
+                                  {term.notes && (
+                                    <p className="text-sm text-slate-600 mt-3">
+                                      {term.notes}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-slate-700 min-w-[280px]">
+                                  <div>
+                                    <span className="text-slate-500">Valor:</span>{" "}
+                                    {formatMoney(term.totalValue)}
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Parcelas:</span>{" "}
+                                    {term.installments}
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Reajuste:</span>{" "}
+                                    {term.reajustPercent}%
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Índice:</span>{" "}
+                                    {term.reajustIndex}
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Parcela:</span>{" "}
+                                    {formatMoney(term.installmentValue)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeViewModal();
+                    openEditModal(selectedContract);
+                  }}
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+                >
+                  Editar contrato
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeViewModal();
+                    openTermModal(selectedContract);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+                >
+                  Novo termo aditivo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTermModal && selectedContract && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">
+                  Novo Termo Aditivo
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  {selectedContract.contractNumber} - {selectedContract.clientName}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeTermModal}
+                className="rounded-xl p-2 hover:bg-slate-100 transition"
+              >
+                <X size={20} className="text-slate-600" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-5 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-3 text-sm">
+                Esta tela está em modo de visualização. O termo será criado de forma fictícia para você validar o fluxo.
+              </div>
+
+              <form onSubmit={handleCreateTerm} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Próximo termo
+                    </label>
+                    <input
+                      disabled
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={`${
+                        (selectedContract.terms?.filter((term) => term.termType === "additive").length ?? 0) + 1
+                      }º Termo Aditivo`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Índice
+                    </label>
+                    <select
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={termForm.reajustIndex}
+                      onChange={(e) =>
+                        setTermForm((prev) => ({ ...prev, reajustIndex: e.target.value }))
+                      }
+                    >
+                      <option value="IPCA">IPCA</option>
+                      <option value="IGPM">IGPM</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Data do termo
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={termForm.termDate}
+                      onChange={(e) =>
+                        setTermForm((prev) => ({ ...prev, termDate: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Vigência inicial
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={termForm.startDate}
+                      onChange={(e) =>
+                        setTermForm((prev) => ({ ...prev, startDate: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Vigência final
+                    </label>
+                    <input
+                      type="date"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={termForm.endDate}
+                      onChange={(e) =>
+                        setTermForm((prev) => ({ ...prev, endDate: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Percentual de reajuste
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex.: 5,00"
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={termForm.reajustPercent}
+                      onChange={(e) =>
+                        setTermForm((prev) => ({
+                          ...prev,
+                          reajustPercent: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Parcelas
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      value={termForm.installments}
+                      onChange={(e) =>
+                        setTermForm((prev) => ({
+                          ...prev,
+                          installments: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm">
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500">Valor atual:</span>
+                    <span className="font-medium text-slate-900">
+                      {formatMoney(selectedContract.currentTerm?.totalValue)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500">Novo valor estimado:</span>
+                    <span className="font-medium text-slate-900">
+                      {formatMoney(
+                        (
+                          Number(selectedContract.currentTerm?.totalValue ?? 0) *
+                          (1 + parseMoney(termForm.reajustPercent || "0") / 100)
+                        ).toFixed(2),
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500">Valor estimado da parcela:</span>
+                    <span className="font-medium text-slate-900">
+                      {formatMoney(
+                        (
+                          (Number(selectedContract.currentTerm?.totalValue ?? 0) *
+                            (1 + parseMoney(termForm.reajustPercent || "0") / 100)) /
+                          Number(termForm.installments || 1)
+                        ).toFixed(2),
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Observação
+                  </label>
+                  <textarea
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm min-h-[90px]"
+                    value={termForm.notes}
+                    onChange={(e) =>
+                      setTermForm((prev) => ({ ...prev, notes: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+                  >
+                    Salvar termo fictício
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={closeTermModal}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold px-5 py-2.5 rounded-xl transition"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
