@@ -9,28 +9,15 @@ import {
   Filter,
 } from "lucide-react";
 
-type Contract = {
-  id: number;
-  contractNumber: string;
-  year: number;
-  clientName: string;
-  cnpj: string;
-  object: string;
-  status: string;
-  reajustIndex?: string;
-  signatureDate?: string;
-  currentTerm?: {
-    termType?: string;
-    termNumber?: number;
-    totalValue: string;
-    endDate: string;
-    startDate?: string;
-    installments?: number;
-    installmentValue?: string;
-    reajustPercent?: string;
-  };
-  terms?: ContractTerm[];
-  items?: ContractItem[];
+type ContractCurrentTerm = {
+  termType?: string;
+  termNumber?: number;
+  totalValue: string;
+  endDate: string;
+  startDate?: string;
+  installments?: number;
+  installmentValue?: string;
+  reajustPercent?: string;
 };
 
 type ContractItem = {
@@ -56,6 +43,23 @@ type ContractTerm = {
   notes?: string;
 };
 
+type Contract = {
+  id: number;
+  contractNumber: string;
+  year: number;
+  clientName: string;
+  cnpj: string;
+  object: string;
+  status: string;
+  reajustIndex?: string;
+  signatureDate?: string;
+  initialTerm?: ContractTerm;
+  currentTerm?: ContractCurrentTerm;
+  initialItems?: ContractItem[];
+  items?: ContractItem[];
+  terms?: ContractTerm[];
+};
+
 type ContractFormItem = {
   description: string;
   quantity: number;
@@ -76,6 +80,20 @@ const mockContracts: Contract[] = [
     status: "Vigente",
     reajustIndex: "IPCA",
     signatureDate: "2026-01-03",
+    initialTerm: {
+      id: 1,
+      termType: "initial",
+      termNumber: 0,
+      termDate: "2026-01-03",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+      totalValue: "3300.00",
+      installments: 12,
+      installmentValue: "275.00",
+      reajustIndex: "IPCA",
+      reajustPercent: "0.00",
+      notes: "Termo inicial.",
+    },
     currentTerm: {
       termType: "additive",
       termNumber: 1,
@@ -86,6 +104,22 @@ const mockContracts: Contract[] = [
       installmentValue: "291.67",
       reajustPercent: "5.00",
     },
+    initialItems: [
+      {
+        id: 1,
+        description: "Sistema de Contabilidade",
+        quantity: 1,
+        unitValue: "1500.00",
+        totalValue: "1500.00",
+      },
+      {
+        id: 2,
+        description: "Sistema de Arrecadação",
+        quantity: 1,
+        unitValue: "1800.00",
+        totalValue: "1800.00",
+      },
+    ],
     items: [
       {
         id: 1,
@@ -143,6 +177,20 @@ const mockContracts: Contract[] = [
     status: "Vigente",
     reajustIndex: "IGPM",
     signatureDate: "2026-02-10",
+    initialTerm: {
+      id: 3,
+      termType: "initial",
+      termNumber: 0,
+      termDate: "2026-02-10",
+      startDate: "2026-02-10",
+      endDate: "2026-12-31",
+      totalValue: "2200.00",
+      installments: 10,
+      installmentValue: "220.00",
+      reajustIndex: "IGPM",
+      reajustPercent: "0.00",
+      notes: "Termo inicial.",
+    },
     currentTerm: {
       termType: "initial",
       termNumber: 0,
@@ -153,6 +201,22 @@ const mockContracts: Contract[] = [
       installmentValue: "220.00",
       reajustPercent: "0.00",
     },
+    initialItems: [
+      {
+        id: 1,
+        description: "Sistema de Pessoal",
+        quantity: 1,
+        unitValue: "1200.00",
+        totalValue: "1200.00",
+      },
+      {
+        id: 2,
+        description: "Sistema de Tesouraria",
+        quantity: 1,
+        unitValue: "1000.00",
+        totalValue: "1000.00",
+      },
+    ],
     items: [
       {
         id: 1,
@@ -196,6 +260,20 @@ const mockContracts: Contract[] = [
     status: "Encerrado",
     reajustIndex: "IPCA",
     signatureDate: "2025-01-15",
+    initialTerm: {
+      id: 4,
+      termType: "initial",
+      termNumber: 0,
+      termDate: "2025-01-15",
+      startDate: "2025-01-15",
+      endDate: "2025-12-31",
+      totalValue: "4500.00",
+      installments: 12,
+      installmentValue: "375.00",
+      reajustIndex: "IPCA",
+      reajustPercent: "0.00",
+      notes: "Termo inicial.",
+    },
     currentTerm: {
       termType: "additive",
       termNumber: 2,
@@ -206,6 +284,22 @@ const mockContracts: Contract[] = [
       installmentValue: "400.00",
       reajustPercent: "4.20",
     },
+    initialItems: [
+      {
+        id: 1,
+        description: "Sistema Tributário",
+        quantity: 1,
+        unitValue: "2400.00",
+        totalValue: "2400.00",
+      },
+      {
+        id: 2,
+        description: "Portal da Transparência",
+        quantity: 1,
+        unitValue: "2100.00",
+        totalValue: "2100.00",
+      },
+    ],
     items: [
       {
         id: 1,
@@ -297,6 +391,20 @@ function getStatusBadgeClass(status: string) {
   return status === "Vigente"
     ? "bg-blue-50 text-blue-700"
     : "bg-slate-100 text-slate-700";
+}
+
+function calculateDifference(current?: string, initial?: string) {
+  const currentValue = Number(current ?? 0);
+  const initialValue = Number(initial ?? 0);
+  return currentValue - initialValue;
+}
+
+function calculatePercentDifference(current?: string, initial?: string) {
+  const currentValue = Number(current ?? 0);
+  const initialValue = Number(initial ?? 0);
+
+  if (!initialValue) return 0;
+  return ((currentValue - initialValue) / initialValue) * 100;
 }
 
 export default function ContractManagement() {
@@ -580,6 +688,14 @@ export default function ContractManagement() {
     }, 0);
 
     if (usingMockData) {
+      const generatedItems = normalizedItems.map((item, index) => ({
+        id: index + 1,
+        description: item.description,
+        quantity: item.quantity,
+        unitValue: item.unitValue.toFixed(2),
+        totalValue: (item.quantity * item.unitValue).toFixed(2),
+      }));
+
       const fakeContract: Contract = {
         id: editingContractId ?? Date.now(),
         contractNumber: form.contractNumber,
@@ -590,6 +706,20 @@ export default function ContractManagement() {
         status: "Vigente",
         reajustIndex: form.reajustIndex,
         signatureDate: form.signatureDate,
+        initialTerm: {
+          id: 1,
+          termType: "initial",
+          termNumber: 0,
+          termDate: form.signatureDate,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          totalValue: totalValue.toFixed(2),
+          installments: form.installments,
+          installmentValue: (totalValue / form.installments).toFixed(2),
+          reajustIndex: form.reajustIndex,
+          reajustPercent: "0.00",
+          notes: "Termo inicial.",
+        },
         currentTerm: {
           termType: "initial",
           termNumber: 0,
@@ -600,13 +730,8 @@ export default function ContractManagement() {
           installmentValue: (totalValue / form.installments).toFixed(2),
           reajustPercent: "0.00",
         },
-        items: normalizedItems.map((item, index) => ({
-          id: index + 1,
-          description: item.description,
-          quantity: item.quantity,
-          unitValue: item.unitValue.toFixed(2),
-          totalValue: (item.quantity * item.unitValue).toFixed(2),
-        })),
+        initialItems: generatedItems,
+        items: generatedItems,
         terms: [
           {
             id: 1,
@@ -697,6 +822,20 @@ export default function ContractManagement() {
     };
 
     if (usingMockData) {
+      const initialItems = selectedContract.initialItems ?? selectedContract.items ?? [];
+      const currentItems = selectedContract.items ?? [];
+
+      const updatedItems = currentItems.map((item) => {
+        const updatedUnitValue = Number(item.unitValue) * (1 + reajustPercentNumber / 100);
+        const updatedTotalValue = updatedUnitValue * item.quantity;
+
+        return {
+          ...item,
+          unitValue: updatedUnitValue.toFixed(2),
+          totalValue: updatedTotalValue.toFixed(2),
+        };
+      });
+
       const updatedContract: Contract = {
         ...selectedContract,
         currentTerm: {
@@ -709,6 +848,8 @@ export default function ContractManagement() {
           installmentValue: (newValue / Number(termForm.installments)).toFixed(2),
           reajustPercent: reajustPercentNumber.toFixed(2),
         },
+        initialItems,
+        items: updatedItems,
         terms: [...(selectedContract.terms ?? []), newTerm],
       };
 
@@ -749,6 +890,61 @@ export default function ContractManagement() {
 
   const additiveTerms =
     selectedContract?.terms?.filter((term) => term.termType === "additive") ?? [];
+
+  const contractInitialValue = selectedContract?.initialTerm?.totalValue ?? "0.00";
+  const contractCurrentValue = selectedContract?.currentTerm?.totalValue ?? "0.00";
+  const contractDifference = calculateDifference(contractCurrentValue, contractInitialValue);
+  const contractDifferencePercent = calculatePercentDifference(
+    contractCurrentValue,
+    contractInitialValue,
+  );
+
+  const itemComparisons = useMemo(() => {
+    if (!selectedContract) return [];
+
+    const initialItems = selectedContract.initialItems ?? [];
+    const currentItems = selectedContract.items ?? [];
+
+    return currentItems.map((currentItem) => {
+      const initialItem = initialItems.find(
+        (item) => item.description === currentItem.description,
+      );
+
+      const initialUnitValue = Number(initialItem?.unitValue ?? 0);
+      const currentUnitValue = Number(currentItem.unitValue ?? 0);
+      const initialTotalValue = Number(initialItem?.totalValue ?? 0);
+      const currentTotalValue = Number(currentItem.totalValue ?? 0);
+
+      return {
+        description: currentItem.description,
+        quantity: currentItem.quantity,
+        initialUnitValue,
+        currentUnitValue,
+        unitDifference: currentUnitValue - initialUnitValue,
+        initialTotalValue,
+        currentTotalValue,
+        totalDifference: currentTotalValue - initialTotalValue,
+      };
+    });
+  }, [selectedContract]);
+
+  const itemsSummary = useMemo(() => {
+    const initialTotal = itemComparisons.reduce(
+      (acc, item) => acc + item.initialTotalValue,
+      0,
+    );
+    const currentTotal = itemComparisons.reduce(
+      (acc, item) => acc + item.currentTotalValue,
+      0,
+    );
+
+    return {
+      count: itemComparisons.length,
+      initialTotal,
+      currentTotal,
+      difference: currentTotal - initialTotal,
+    };
+  }, [itemComparisons]);
 
   return (
     <div className="space-y-6">
@@ -1372,7 +1568,7 @@ export default function ContractManagement() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                       <h4 className="text-base font-semibold text-slate-900 mb-4">
                         Dados do contrato
@@ -1467,48 +1663,134 @@ export default function ContractManagement() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <h4 className="text-base font-semibold text-slate-900 mb-4">
+                      Comparativo financeiro do contrato
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <p className="text-xs text-slate-500">Valor inicial</p>
+                        <p className="text-xl font-bold text-slate-900 mt-1">
+                          {formatMoney(contractInitialValue)}
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <p className="text-xs text-slate-500">Valor atual</p>
+                        <p className="text-xl font-bold text-slate-900 mt-1">
+                          {formatMoney(contractCurrentValue)}
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <p className="text-xs text-slate-500">Diferença acumulada</p>
+                        <p className="text-xl font-bold text-slate-900 mt-1">
+                          {formatMoney(contractDifference.toFixed(2))}
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <p className="text-xs text-slate-500">Percentual acumulado</p>
+                        <p className="text-xl font-bold text-slate-900 mt-1">
+                          {contractDifferencePercent.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </>
               )}
 
               {viewTab === "items" && (
-                <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                  <h4 className="text-base font-semibold text-slate-900 mb-4">
-                    Itens do contrato
-                  </h4>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                      <p className="text-sm text-slate-500">Quantidade de itens</p>
+                      <p className="text-3xl font-bold text-slate-900 mt-2">
+                        {itemsSummary.count}
+                      </p>
+                    </div>
 
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                            Descrição
-                          </th>
-                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                            Quantidade
-                          </th>
-                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                            Valor unitário
-                          </th>
-                          <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                            Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(selectedContract.items ?? []).map((item) => (
-                          <tr key={item.id} className="border-t border-slate-200">
-                            <td className="px-4 py-3 text-slate-700">{item.description}</td>
-                            <td className="px-4 py-3 text-slate-700">{item.quantity}</td>
-                            <td className="px-4 py-3 text-slate-700">
-                              {formatMoney(item.unitValue)}
-                            </td>
-                            <td className="px-4 py-3 text-slate-700">
-                              {formatMoney(item.totalValue)}
-                            </td>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                      <p className="text-sm text-slate-500">Total inicial</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-2">
+                        {formatMoney(itemsSummary.initialTotal.toFixed(2))}
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                      <p className="text-sm text-slate-500">Total atual</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-2">
+                        {formatMoney(itemsSummary.currentTotal.toFixed(2))}
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                      <p className="text-sm text-slate-500">Diferença total</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-2">
+                        {formatMoney(itemsSummary.difference.toFixed(2))}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <h4 className="text-base font-semibold text-slate-900 mb-4">
+                      Comparativo dos itens
+                    </h4>
+
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Descrição
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Qtd
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Valor inicial
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Valor atual
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Diferença
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Total inicial
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                              Total atual
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {itemComparisons.map((item, index) => (
+                            <tr key={index} className="border-t border-slate-200">
+                              <td className="px-4 py-3 text-slate-700">{item.description}</td>
+                              <td className="px-4 py-3 text-slate-700">{item.quantity}</td>
+                              <td className="px-4 py-3 text-slate-700">
+                                {formatMoney(item.initialUnitValue.toFixed(2))}
+                              </td>
+                              <td className="px-4 py-3 text-slate-700">
+                                {formatMoney(item.currentUnitValue.toFixed(2))}
+                              </td>
+                              <td className="px-4 py-3 text-slate-700">
+                                {formatMoney(item.unitDifference.toFixed(2))}
+                              </td>
+                              <td className="px-4 py-3 text-slate-700">
+                                {formatMoney(item.initialTotalValue.toFixed(2))}
+                              </td>
+                              <td className="px-4 py-3 text-slate-700">
+                                {formatMoney(item.currentTotalValue.toFixed(2))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
