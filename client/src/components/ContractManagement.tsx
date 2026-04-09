@@ -1299,140 +1299,170 @@ export default function ContractManagement() {
 
               {viewTab === "general" && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                      <p className="text-xs text-slate-500">Nº do contrato</p>
-                      <p className="text-base font-semibold text-slate-900 mt-1">
-                        {selectedContract.contractNumber}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <div className="xl:col-span-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-sm">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-slate-300">Contrato</p>
+                          <h4 className="text-3xl font-bold mt-1">
+                            Nº {selectedContract.contractNumber}/{selectedContract.year}
+                          </h4>
+                          <p className="text-slate-200 mt-3 text-base">
+                            {selectedContract.clientName}
+                          </p>
+                          <p className="text-slate-300 mt-1 text-sm">
+                            CNPJ: {selectedContract.cnpj}
+                          </p>
+                        </div>
 
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                      <p className="text-xs text-slate-500">Ano</p>
-                      <p className="text-base font-semibold text-slate-900 mt-1">
-                        {selectedContract.year}
-                      </p>
-                    </div>
-
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                      <p className="text-xs text-slate-500">Status</p>
-                      <p className="text-base font-semibold text-slate-900 mt-1">
-                        {selectedContract.status}
-                      </p>
-                    </div>
-
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                      <p className="text-xs text-slate-500">Índice</p>
-                      <p className="text-base font-semibold text-slate-900 mt-1">
-                        {selectedContract.reajustIndex ?? "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                    <h4 className="text-base font-semibold text-slate-900 mb-4">
-                      Dados do contrato
-                    </h4>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-slate-500">Município / cliente:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.clientName}
+                        <div>
+                          <span
+                            className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
+                              selectedContract.status === "Vigente"
+                                ? "bg-blue-500/20 text-blue-100 border border-blue-300/20"
+                                : "bg-slate-500/20 text-slate-100 border border-slate-300/20"
+                            }`}
+                          >
+                            {selectedContract.status}
+                          </span>
                         </div>
                       </div>
 
-                      <div>
-                        <span className="text-slate-500">CNPJ:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.cnpj}
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-slate-500">Data de assinatura:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.signatureDate ?? "-"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-slate-500">Objeto:</span>
-                        <div className="font-medium text-slate-900 mt-1">
+                      <div className="mt-6 border-t border-white/10 pt-6">
+                        <p className="text-sm text-slate-300 mb-2">Objeto do contrato</p>
+                        <p className="text-slate-100 leading-relaxed">
                           {selectedContract.object}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                      <p className="text-sm text-slate-500">Resumo financeiro</p>
+                      <div className="mt-4 space-y-4">
+                        <div>
+                          <p className="text-xs text-slate-500">Valor atual</p>
+                          <p className="text-2xl font-bold text-slate-900 mt-1">
+                            {formatMoney(selectedContract.currentTerm?.totalValue)}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-slate-500">Valor da parcela</p>
+                          <p className="text-lg font-semibold text-slate-900 mt-1">
+                            {formatMoney(selectedContract.currentTerm?.installmentValue)}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                            <p className="text-xs text-slate-500">Parcelas</p>
+                            <p className="text-lg font-semibold text-slate-900 mt-1">
+                              {selectedContract.currentTerm?.installments ?? "-"}
+                            </p>
+                          </div>
+
+                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                            <p className="text-xs text-slate-500">Reajuste</p>
+                            <p className="text-lg font-semibold text-slate-900 mt-1">
+                              {selectedContract.currentTerm?.reajustPercent ?? "0.00"}%
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                    <h4 className="text-base font-semibold text-slate-900 mb-4">
-                      Termo atual
-                    </h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                      <h4 className="text-base font-semibold text-slate-900 mb-4">
+                        Dados do contrato
+                      </h4>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <span className="text-slate-500">Tipo:</span>
-                        <div className="font-medium text-slate-900 mt-1">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Município / cliente</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.clientName}
+                          </p>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">CNPJ</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.cnpj}
+                          </p>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Data de assinatura</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.signatureDate ?? "-"}
+                          </p>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Índice do contrato</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.reajustIndex ?? "-"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-base font-semibold text-slate-900">
+                          Termo atual
+                        </h4>
+
+                        <span className="inline-flex rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs font-semibold">
                           {getTermLabel(selectedContract.currentTerm)}
-                        </div>
+                        </span>
                       </div>
 
-                      <div>
-                        <span className="text-slate-500">Número do termo:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.currentTerm?.termType === "initial"
-                            ? "0"
-                            : selectedContract.currentTerm?.termNumber ?? "-"}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Número do termo</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.currentTerm?.termType === "initial"
+                              ? "0"
+                              : selectedContract.currentTerm?.termNumber ?? "-"}
+                          </p>
                         </div>
-                      </div>
 
-                      <div>
-                        <span className="text-slate-500">Índice aplicado:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.reajustIndex ?? "-"}
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Índice aplicado</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.reajustIndex ?? "-"}
+                          </p>
                         </div>
-                      </div>
 
-                      <div>
-                        <span className="text-slate-500">Percentual:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.currentTerm?.reajustPercent ?? "0.00"}%
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Vigência inicial</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.currentTerm?.startDate ?? "-"}
+                          </p>
                         </div>
-                      </div>
 
-                      <div>
-                        <span className="text-slate-500">Valor global:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {formatMoney(selectedContract.currentTerm?.totalValue)}
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Vigência final</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.currentTerm?.endDate ?? "-"}
+                          </p>
                         </div>
-                      </div>
 
-                      <div>
-                        <span className="text-slate-500">Parcelas:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.currentTerm?.installments ?? "-"}
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Parcelas</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.currentTerm?.installments ?? "-"}
+                          </p>
                         </div>
-                      </div>
 
-                      <div>
-                        <span className="text-slate-500">Valor da parcela:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {formatMoney(selectedContract.currentTerm?.installmentValue)}
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-slate-500">Vigência inicial:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.currentTerm?.startDate ?? "-"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-slate-500">Vigência final:</span>
-                        <div className="font-medium text-slate-900 mt-1">
-                          {selectedContract.currentTerm?.endDate ?? "-"}
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500">Percentual</p>
+                          <p className="font-semibold text-slate-900 mt-1">
+                            {selectedContract.currentTerm?.reajustPercent ?? "0.00"}%
+                          </p>
                         </div>
                       </div>
                     </div>
