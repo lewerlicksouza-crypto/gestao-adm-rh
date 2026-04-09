@@ -381,10 +381,25 @@ function formatMoney(value?: string) {
   });
 }
 
+function formatDateBR(value?: string) {
+  if (!value) return "-";
+
+  const parts = value.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("pt-BR");
+}
+
 function getTermLabel(term?: { termType?: string; termNumber?: number }) {
   if (!term) return "-";
-  if (term.termType === "initial") return "Termo Inicial";
-  return `${term.termNumber}º Termo Aditivo`;
+  if (term.termType === "initial") return "Inicial";
+  return `${term.termNumber}º Aditivo`;
 }
 
 function getStatusBadgeClass(status: string) {
@@ -1057,6 +1072,7 @@ export default function ContractManagement() {
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">Ano</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">Município</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">CNPJ</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Termo atual</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">Valor atual</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">Vigência final</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
@@ -1071,10 +1087,13 @@ export default function ContractManagement() {
                     <td className="px-4 py-3 text-slate-700">{contract.clientName}</td>
                     <td className="px-4 py-3 text-slate-700">{contract.cnpj}</td>
                     <td className="px-4 py-3 text-slate-700">
+                      {getTermLabel(contract.currentTerm)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
                       {formatMoney(contract.currentTerm?.totalValue)}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      {contract.currentTerm?.endDate ?? "-"}
+                      {formatDateBR(contract.currentTerm?.endDate)}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -1592,7 +1611,7 @@ export default function ContractManagement() {
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                           <p className="text-xs text-slate-500">Data de assinatura</p>
                           <p className="font-semibold text-slate-900 mt-1">
-                            {selectedContract.signatureDate ?? "-"}
+                            {formatDateBR(selectedContract.signatureDate)}
                           </p>
                         </div>
 
@@ -1636,14 +1655,14 @@ export default function ContractManagement() {
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                           <p className="text-xs text-slate-500">Vigência inicial</p>
                           <p className="font-semibold text-slate-900 mt-1">
-                            {selectedContract.currentTerm?.startDate ?? "-"}
+                            {formatDateBR(selectedContract.currentTerm?.startDate)}
                           </p>
                         </div>
 
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                           <p className="text-xs text-slate-500">Vigência final</p>
                           <p className="font-semibold text-slate-900 mt-1">
-                            {selectedContract.currentTerm?.endDate ?? "-"}
+                            {formatDateBR(selectedContract.currentTerm?.endDate)}
                           </p>
                         </div>
 
@@ -1821,10 +1840,10 @@ export default function ContractManagement() {
                                     {term.termNumber}º Termo Aditivo
                                   </p>
                                   <p className="text-sm text-slate-500 mt-1">
-                                    Vigência: {term.startDate} até {term.endDate}
+                                    Vigência: {formatDateBR(term.startDate)} até {formatDateBR(term.endDate)}
                                   </p>
                                   <p className="text-sm text-slate-500 mt-1">
-                                    Data do termo: {term.termDate}
+                                    Data do termo: {formatDateBR(term.termDate)}
                                   </p>
                                   {term.notes && (
                                     <p className="text-sm text-slate-600 mt-3">
