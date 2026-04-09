@@ -1485,7 +1485,7 @@ export default function ContractManagement() {
 
               {viewTab === "terms" && (
                 <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                  <h4 className="text-base font-semibold text-slate-900 mb-4">
+                  <h4 className="text-base font-semibold text-slate-900 mb-6">
                     Histórico de termos
                   </h4>
 
@@ -1494,32 +1494,60 @@ export default function ContractManagement() {
                       Nenhum termo aditivo cadastrado até o momento.
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {additiveTerms.map((term) => (
-                        <div
-                          key={term.id}
-                          className="border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
-                        >
-                          <div>
-                            <p className="font-semibold text-slate-900">
-                              {term.termNumber}º Termo Aditivo
-                            </p>
-                            <p className="text-sm text-slate-500 mt-1">
-                              {term.startDate} até {term.endDate}
-                            </p>
-                            <p className="text-sm text-slate-500 mt-1">
-                              Data do termo: {term.termDate}
-                            </p>
-                          </div>
+                    <div className="relative pl-8">
+                      <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-200" />
 
-                          <div className="text-sm text-slate-700">
-                            <div>Valor: {formatMoney(term.totalValue)}</div>
-                            <div>Parcelas: {term.installments}</div>
-                            <div>Reajuste: {term.reajustPercent}%</div>
-                            <div>Índice: {term.reajustIndex}</div>
+                      <div className="space-y-6">
+                        {additiveTerms.map((term) => (
+                          <div key={term.id} className="relative">
+                            <div className="absolute -left-[2px] top-2 w-6 h-6 rounded-full bg-blue-600 border-4 border-white shadow" />
+
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 ml-6">
+                              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                                <div>
+                                  <p className="text-base font-semibold text-slate-900">
+                                    {term.termNumber}º Termo Aditivo
+                                  </p>
+                                  <p className="text-sm text-slate-500 mt-1">
+                                    Vigência: {term.startDate} até {term.endDate}
+                                  </p>
+                                  <p className="text-sm text-slate-500 mt-1">
+                                    Data do termo: {term.termDate}
+                                  </p>
+                                  {term.notes && (
+                                    <p className="text-sm text-slate-600 mt-3">
+                                      {term.notes}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm text-slate-700 min-w-[280px]">
+                                  <div>
+                                    <span className="text-slate-500">Valor:</span>{" "}
+                                    {formatMoney(term.totalValue)}
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Parcelas:</span>{" "}
+                                    {term.installments}
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Reajuste:</span>{" "}
+                                    {term.reajustPercent}%
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Índice:</span>{" "}
+                                    {term.reajustIndex}
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500">Parcela:</span>{" "}
+                                    {formatMoney(term.installmentValue)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
