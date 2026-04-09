@@ -115,7 +115,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <Building2 className="w-4 h-4" />
-                  Conta Publi
+                  Conta Publica
                 </button>
 
                 <button
@@ -127,7 +127,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <Building2 className="w-4 h-4" />
-                  Idel
+                  Idel Soluções
                 </button>
               </div>
             )}
