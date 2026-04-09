@@ -11,6 +11,12 @@ import {
   Building2,
 } from "lucide-react";
 
+type CompanyName = "Conta Soluções" | "Conta Pública" | "Idel Soluções";
+
+type ContractManagementProps = {
+  companyName: CompanyName;
+};
+
 type ContractCurrentTerm = {
   termType?: string;
   termNumber?: number;
@@ -53,6 +59,7 @@ type ContractTerm = {
 
 type Contract = {
   id: number;
+  companyName: CompanyName;
   contractNumber: string;
   year: number;
   clientName: string;
@@ -87,6 +94,7 @@ const defaultGroupName = "Prefeitura Municipal";
 const mockContracts: Contract[] = [
   {
     id: 1,
+    companyName: "Conta Soluções",
     contractNumber: "008",
     year: 2026,
     clientName: "Município de Areal",
@@ -260,6 +268,236 @@ const mockContracts: Contract[] = [
       },
     ],
   },
+  {
+    id: 2,
+    companyName: "Conta Pública",
+    contractNumber: "014",
+    year: 2026,
+    clientName: "Município de Carmo",
+    cnpj: "28.645.122/0001-10",
+    object: "Assessoria técnica em gestão pública e acompanhamento administrativo.",
+    status: "Vigente",
+    reajustIndex: "IGPM",
+    signatureDate: "2026-02-15",
+    initialTerm: {
+      id: 3,
+      termType: "initial",
+      termNumber: 0,
+      termDate: "2026-02-15",
+      startDate: "2026-02-15",
+      endDate: "2027-02-14",
+      totalValue: "9600.00",
+      installments: 12,
+      installmentValue: "800.00",
+      reajustIndex: "IGPM",
+      reajustPercent: "0.00",
+      notes: "Termo inicial.",
+    },
+    currentTerm: {
+      termType: "initial",
+      termNumber: 0,
+      totalValue: "9600.00",
+      startDate: "2026-02-15",
+      endDate: "2027-02-14",
+      installments: 12,
+      installmentValue: "800.00",
+      reajustPercent: "0.00",
+    },
+    initialGroups: [
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Administrativa",
+            quantity: 12,
+            unitValue: "500.00",
+            totalValue: "6000.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Câmara Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Legislativa",
+            quantity: 12,
+            unitValue: "300.00",
+            totalValue: "3600.00",
+          },
+        ],
+      },
+    ],
+    groups: [
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Administrativa",
+            quantity: 12,
+            unitValue: "500.00",
+            totalValue: "6000.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Câmara Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Legislativa",
+            quantity: 12,
+            unitValue: "300.00",
+            totalValue: "3600.00",
+          },
+        ],
+      },
+    ],
+    terms: [
+      {
+        id: 3,
+        termType: "initial",
+        termNumber: 0,
+        termDate: "2026-02-15",
+        startDate: "2026-02-15",
+        endDate: "2027-02-14",
+        totalValue: "9600.00",
+        installments: 12,
+        installmentValue: "800.00",
+        reajustIndex: "IGPM",
+        reajustPercent: "0.00",
+        notes: "Termo inicial.",
+      },
+    ],
+  },
+  {
+    id: 3,
+    companyName: "Idel Soluções",
+    contractNumber: "021",
+    year: 2025,
+    clientName: "Município de Trajano de Moraes",
+    cnpj: "29.114.673/0001-55",
+    object: "Serviços técnicos especializados de apoio à administração pública.",
+    status: "Encerrado",
+    reajustIndex: "IPCA",
+    signatureDate: "2025-01-10",
+    initialTerm: {
+      id: 4,
+      termType: "initial",
+      termNumber: 0,
+      termDate: "2025-01-10",
+      startDate: "2025-01-10",
+      endDate: "2025-12-31",
+      totalValue: "8400.00",
+      installments: 12,
+      installmentValue: "700.00",
+      reajustIndex: "IPCA",
+      reajustPercent: "0.00",
+      notes: "Termo inicial.",
+    },
+    currentTerm: {
+      termType: "additive",
+      termNumber: 1,
+      totalValue: "8820.00",
+      startDate: "2025-01-10",
+      endDate: "2025-12-31",
+      installments: 12,
+      installmentValue: "735.00",
+      reajustPercent: "5.00",
+    },
+    initialGroups: [
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Contábil",
+            quantity: 12,
+            unitValue: "400.00",
+            totalValue: "4800.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Fundo Municipal de Saúde",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria em Prestação de Contas",
+            quantity: 12,
+            unitValue: "300.00",
+            totalValue: "3600.00",
+          },
+        ],
+      },
+    ],
+    groups: [
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Contábil",
+            quantity: 12,
+            unitValue: "420.00",
+            totalValue: "5040.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Fundo Municipal de Saúde",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria em Prestação de Contas",
+            quantity: 12,
+            unitValue: "315.00",
+            totalValue: "3780.00",
+          },
+        ],
+      },
+    ],
+    terms: [
+      {
+        id: 4,
+        termType: "initial",
+        termNumber: 0,
+        termDate: "2025-01-10",
+        startDate: "2025-01-10",
+        endDate: "2025-12-31",
+        totalValue: "8400.00",
+        installments: 12,
+        installmentValue: "700.00",
+        reajustIndex: "IPCA",
+        reajustPercent: "0.00",
+        notes: "Termo inicial.",
+      },
+      {
+        id: 5,
+        termType: "additive",
+        termNumber: 1,
+        termDate: "2025-06-01",
+        startDate: "2025-06-01",
+        endDate: "2025-12-31",
+        totalValue: "8820.00",
+        installments: 12,
+        installmentValue: "735.00",
+        reajustIndex: "IPCA",
+        reajustPercent: "5.00",
+        notes: "1º Termo Aditivo.",
+      },
+    ],
+  },
 ];
 
 function parseMoney(value: string) {
@@ -363,7 +601,9 @@ function normalizeContractGroups(groups?: ContractGroup[]) {
   );
 }
 
-export default function ContractManagement() {
+export default function ContractManagement({
+  companyName,
+}: ContractManagementProps) {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -382,6 +622,7 @@ export default function ContractManagement() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Todos");
 
   const [form, setForm] = useState({
+    companyName,
     contractNumber: "",
     year: new Date().getFullYear(),
     clientName: "",
@@ -404,6 +645,13 @@ export default function ContractManagement() {
     installments: 12,
     notes: "",
   });
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      companyName,
+    }));
+  }, [companyName]);
 
   async function loadContracts() {
     setLoading(true);
@@ -437,6 +685,7 @@ export default function ContractManagement() {
 
   function resetForm() {
     setForm({
+      companyName,
       contractNumber: "",
       year: new Date().getFullYear(),
       clientName: "",
@@ -570,6 +819,7 @@ export default function ContractManagement() {
   function openEditModal(contract: Contract) {
     setEditingContractId(contract.id);
     setForm({
+      companyName: contract.companyName,
       contractNumber: contract.contractNumber,
       year: contract.year,
       clientName: contract.clientName,
@@ -727,6 +977,7 @@ export default function ContractManagement() {
     if (usingMockData) {
       const fakeContract: Contract = {
         id: editingContractId ?? Date.now(),
+        companyName,
         contractNumber: form.contractNumber,
         year: form.year,
         clientName: form.clientName,
@@ -913,8 +1164,12 @@ export default function ContractManagement() {
     closeTermModal();
   }
 
+  const companyContracts = useMemo(() => {
+    return contracts.filter((contract) => contract.companyName === companyName);
+  }, [contracts, companyName]);
+
   const filteredContracts = useMemo(() => {
-    return contracts.filter((contract) => {
+    return companyContracts.filter((contract) => {
       const matchesSearch =
         !search.trim() ||
         contract.contractNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -926,7 +1181,7 @@ export default function ContractManagement() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [contracts, search, statusFilter]);
+  }, [companyContracts, search, statusFilter]);
 
   const summary = useMemo(() => {
     return {
@@ -1027,9 +1282,12 @@ export default function ContractManagement() {
       <div className="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-slate-900">Contratos</h2>
+            <h2 className="text-3xl font-bold text-slate-900">
+              Contratos - {companyName}
+            </h2>
             <p className="text-sm text-slate-500 mt-1">
-              Gerencie contratos, órgãos/unidades faturadas e termos aditivos.
+              Gerencie os contratos da empresa selecionada, com órgãos/unidades
+              faturadas e termos aditivos.
             </p>
           </div>
 
@@ -1122,7 +1380,7 @@ export default function ContractManagement() {
           <div className="p-6 text-sm text-slate-500">Carregando contratos...</div>
         ) : filteredContracts.length === 0 ? (
           <div className="p-6 text-sm text-slate-500">
-            Nenhum contrato encontrado com os filtros informados.
+            Nenhum contrato encontrado para {companyName}.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1131,13 +1389,25 @@ export default function ContractManagement() {
                 <tr>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">Nº</th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">Ano</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Município</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                    Município
+                  </th>
                   <th className="text-left px-4 py-3 font-semibold text-slate-700">CNPJ</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Termo atual</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Valor atual</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Vigência final</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Ações</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                    Termo atual
+                  </th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                    Valor atual
+                  </th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                    Vigência final
+                  </th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                    Status
+                  </th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1217,7 +1487,7 @@ export default function ContractManagement() {
                   {editingContractId ? "Editar contrato" : "Novo contrato"}
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Cadastre o contrato e organize os itens por órgão/unidade faturada.
+                  Empresa responsável: {companyName}
                 </p>
               </div>
 
@@ -1585,7 +1855,9 @@ export default function ContractManagement() {
                 <h3 className="text-xl font-bold text-slate-900">
                   Contrato nº {selectedContract.contractNumber}/{selectedContract.year}
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">{selectedContract.clientName}</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  {selectedContract.clientName} • {selectedContract.companyName}
+                </p>
               </div>
 
               <button
@@ -1677,6 +1949,13 @@ export default function ContractManagement() {
                       </h4>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-500">Empresa responsável</p>
+                          <p className="text-slate-900 font-medium mt-1">
+                            {selectedContract.companyName}
+                          </p>
+                        </div>
+
                         <div>
                           <p className="text-slate-500">Cliente</p>
                           <p className="text-slate-900 font-medium mt-1">
