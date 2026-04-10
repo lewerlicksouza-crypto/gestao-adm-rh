@@ -1219,7 +1219,7 @@ export default function AdminDashboard() {
                     {dashboardSummary.billingPendingCount}
                   </p>
                   <p className="text-sm text-amber-700 mt-2">
-                    Faturamentos emitidos ou previstos aguardando pagamento.
+                    Faturamentos aguardando pagamento.
                   </p>
                 </div>
 
