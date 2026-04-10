@@ -94,6 +94,15 @@ export type BillingEntry = {
   invoiceNumber: string;
   invoiceDate: string;
   invoicedValue: string;
+  grossValue?: string;
+  netValue?: string;
+  hasIss?: boolean;
+  issRate?: string;
+  issValue?: string;
+  outsideCity?: boolean;
+  hasIr?: boolean;
+  irRate?: string;
+  irValue?: string;
   invoiceStatus: BillingInvoiceStatus;
   paymentStatus: BillingPaymentStatus;
   paymentDate: string;
@@ -412,6 +421,15 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Pago",
     paymentDate: "2026-01-18",
+    hasIss: true,
+    issRate: "5",
+    issValue: "315.00",
+    outsideCity: false,
+    hasIr: true,
+    irRate: "4.8",
+    irValue: "302.40",
+    grossValue: "6300.00",
+    netValue: "5682.60",
     notes: "Pagamento dentro do prazo.",
   },
   {
@@ -430,6 +448,15 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Pendente",
     paymentDate: "",
+    hasIss: true,
+    issRate: "5",
+    issValue: "135.45",
+    outsideCity: false,
+    hasIr: true,
+    irRate: "4.8",
+    irValue: "130.03",
+    grossValue: "2709.00",
+    netValue: "2443.52",
     notes: "Aguardando pagamento.",
   },
   {
@@ -448,6 +475,15 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Pendente de emissão",
     paymentStatus: "Pendente",
     paymentDate: "",
+    hasIss: true,
+    issRate: "5",
+    issValue: "173.25",
+    outsideCity: false,
+    hasIr: true,
+    irRate: "4.8",
+    irValue: "166.32",
+    grossValue: "3465.00",
+    netValue: "3125.43",
     notes: "NF ainda não emitida.",
   },
   {
@@ -466,6 +502,15 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Pago em atraso",
     paymentDate: "2026-04-12",
+    hasIss: true,
+    issRate: "5",
+    issValue: "300.00",
+    outsideCity: false,
+    hasIr: true,
+    irRate: "4.8",
+    irValue: "288.00",
+    grossValue: "6000.00",
+    netValue: "5412.00",
     notes: "Pagamento recebido após vencimento.",
   },
   {
@@ -484,6 +529,15 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Pendente",
     paymentDate: "",
+    hasIss: true,
+    issRate: "5",
+    issValue: "180.00",
+    outsideCity: false,
+    hasIr: true,
+    irRate: "4.8",
+    irValue: "172.80",
+    grossValue: "3600.00",
+    netValue: "3247.20",
     notes: "Sem baixa até o momento.",
   },
   {
@@ -502,6 +556,15 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Pago",
     paymentDate: "2025-08-20",
+    hasIss: true,
+    issRate: "5",
+    issValue: "252.00",
+    outsideCity: false,
+    hasIr: true,
+    irRate: "4.8",
+    irValue: "241.92",
+    grossValue: "5040.00",
+    netValue: "4546.08",
     notes: "Competência quitada.",
   },
   {
@@ -520,6 +583,15 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Inadimplente",
     paymentDate: "",
+    hasIss: true,
+    issRate: "5",
+    issValue: "189.00",
+    outsideCity: false,
+    hasIr: true,
+    irRate: "4.8",
+    irValue: "181.44",
+    grossValue: "3780.00",
+    netValue: "3409.56",
     notes: "Cliente sem pagamento até hoje.",
   },
 ];
