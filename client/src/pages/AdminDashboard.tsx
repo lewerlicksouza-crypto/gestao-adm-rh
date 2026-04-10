@@ -48,6 +48,7 @@ export type ContractGroupItem = {
   quantity: number;
   unitValue: string;
   totalValue: string;
+  billingStatus?: "suspenso" | "faturando";
 };
 
 export type ContractGroup = {
@@ -96,6 +97,7 @@ export type BillingEntry = {
   contractNumber: string;
   clientName: string;
   groupName: string;
+  itemDescription?: string;
   referenceMonth: string;
   installmentNumber: number;
   expectedValue: string;
