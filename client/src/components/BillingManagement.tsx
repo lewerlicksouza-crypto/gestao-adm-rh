@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Search,
   Filter,
@@ -60,6 +60,18 @@ function formatDateBR(value?: string) {
   return value;
 }
 
+function competenceToInput(value: string) {
+  const [month, year] = value.split("/");
+  if (!month || !year) return "";
+  return `${year}-${month}`;
+}
+
+function inputToCompetence(value: string) {
+  const [year, month] = value.split("-");
+  if (!month || !year) return "";
+  return `${month}/${year}`;
+}
+
 function getBadgeClass(status: string) {
   if (status === "Pago") return "bg-green-50 text-green-700";
   if (status === "Pago em atraso") return "bg-amber-50 text-amber-700";
@@ -97,6 +109,42 @@ function compactCardClass() {
   return "bg-white rounded-2xl shadow-sm border border-slate-200 px-5 py-4";
 }
 
+function getEntryKey(entry: Pick<BillingEntry, "contractId" | "groupName" | "referenceMonth"> & { itemDescription?: string }) {
+  return [
+    entry.contractId,
+    entry.groupName,
+    entry.itemDescription || "",
+    entry.referenceMonth,
+  ].join("__");
+}
+
+function createStableId(seed: string) {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+  }
+  return 900000 + (hash % 1000000);
+}
+
+function getInstallmentNumber(contract: Contract, competence: string) {
+  const [monthText, yearText] = competence.split("/");
+  const month = Number(monthText);
+  const year = Number(yearText);
+  if (!month || !year) return 1;
+
+  const startDateText = contract.currentTerm?.startDate || contract.signatureDate;
+  if (!startDateText) return 1;
+
+  const [startYearText, startMonthText] = startDateText.split("-");
+  const startYear = Number(startYearText);
+  const startMonth = Number(startMonthText);
+  if (!startYear || !startMonth) return 1;
+
+  const diff = (year - startYear) * 12 + (month - startMonth) + 1;
+  if (diff < 1) return 1;
+  return diff;
+}
+
 export default function BillingManagement({
   companyName,
   contracts,
@@ -106,6 +154,7 @@ export default function BillingManagement({
   const [search, setSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("Todos");
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>("Todos");
+  const [competence, setCompetence] = useState("01/2026");
 
   const [editingEntry, setEditingEntry] = useState<BillingEntry | null>(null);
   const [editForm, setEditForm] = useState<EditFormState>({
@@ -125,15 +174,79 @@ export default function BillingManagement({
     [contracts, companyName],
   );
 
+  const generatedBaseEntries = useMemo(() => {
+    const entries: BillingEntry[] = [];
+
+    companyContracts.forEach((contract) => {
+      (contract.groups || []).forEach((group) => {
+        group.items
+          .filter((item) => item.billingStatus === "faturando")
+          .forEach((item) => {
+            const key = getEntryKey({
+              contractId: contract.id,
+              groupName: group.name,
+              itemDescription: item.description,
+              referenceMonth: competence,
+            });
+
+            const existing = billingEntries.find(
+              (entry) =>
+                entry.companyName === companyName &&
+                entry.contractId === contract.id &&
+                entry.groupName === group.name &&
+                (entry.itemDescription || "") === item.description &&
+                entry.referenceMonth === competence,
+            );
+
+            if (existing) {
+              entries.push(existing);
+              return;
+            }
+
+            entries.push({
+              id: createStableId(key),
+              companyName,
+              contractId: contract.id,
+              contractNumber: `${contract.contractNumber}/${contract.year}`,
+              clientName: contract.clientName,
+              groupName: group.name,
+              itemDescription: item.description,
+              referenceMonth: competence,
+              installmentNumber: getInstallmentNumber(contract, competence),
+              expectedValue: item.totalValue,
+              invoiceNumber: "",
+              invoiceDate: "",
+              invoicedValue: item.totalValue,
+              invoiceStatus: "Pendente de emissão",
+              paymentStatus: "Pendente",
+              paymentDate: "",
+              hasIss: true,
+              outsideCity: false,
+              hasIr: true,
+            });
+          });
+      });
+    });
+
+    return entries;
+  }, [billingEntries, companyContracts, companyName, competence]);
+
+  const preservedExistingEntries = useMemo(() => {
+    const generatedKeys = new Set(generatedBaseEntries.map((entry) => getEntryKey(entry)));
+
+    return billingEntries.filter((entry) => {
+      if (entry.companyName !== companyName) return false;
+      if (entry.referenceMonth !== competence) return false;
+      return !generatedKeys.has(getEntryKey(entry));
+    });
+  }, [billingEntries, companyName, competence, generatedBaseEntries]);
+
   const companyEntries = useMemo(
-    () =>
-      billingEntries
-        .filter((entry) => entry.companyName === companyName)
-        .map((entry) => ({
-          ...entry,
-          ...calculateNetValues(entry),
-        })),
-    [billingEntries, companyName],
+    () => [...generatedBaseEntries, ...preservedExistingEntries].map((entry) => ({
+      ...entry,
+      ...calculateNetValues(entry),
+    })),
+    [generatedBaseEntries, preservedExistingEntries],
   );
 
   const filteredEntries = useMemo(() => {
@@ -143,6 +256,7 @@ export default function BillingManagement({
         entry.contractNumber.toLowerCase().includes(search.toLowerCase()) ||
         entry.clientName.toLowerCase().includes(search.toLowerCase()) ||
         entry.groupName.toLowerCase().includes(search.toLowerCase()) ||
+        (entry.itemDescription || "").toLowerCase().includes(search.toLowerCase()) ||
         entry.referenceMonth.toLowerCase().includes(search.toLowerCase()) ||
         (entry.invoiceNumber || "").toLowerCase().includes(search.toLowerCase());
 
@@ -186,14 +300,12 @@ export default function BillingManagement({
 
     const paidCount = filteredEntries.filter(
       (entry) =>
-        entry.paymentStatus === "Pago" ||
-        entry.paymentStatus === "Pago em atraso",
+        entry.paymentStatus === "Pago" || entry.paymentStatus === "Pago em atraso",
     ).length;
 
     const openCount = filteredEntries.filter(
       (entry) =>
-        entry.paymentStatus === "Pendente" ||
-        entry.paymentStatus === "Inadimplente",
+        entry.paymentStatus === "Pendente" || entry.paymentStatus === "Inadimplente",
     ).length;
 
     return {
@@ -249,29 +361,43 @@ export default function BillingManagement({
   function saveEditModal() {
     if (!editingEntry) return;
 
-    onBillingEntriesChange((prev) =>
-      prev.map((entry) => {
-        if (entry.id !== editingEntry.id) return entry;
-
-        const updated = {
-          ...entry,
-          invoicedValue: editForm.invoicedValue,
-          invoiceNumber: editForm.invoiceNumber,
-          invoiceDate: editForm.invoiceDate,
-          invoiceStatus: editForm.invoiceStatus,
-          paymentStatus: editForm.paymentStatus,
-          paymentDate: editForm.paymentDate,
-          hasIss: editForm.hasIss,
-          outsideCity: editForm.outsideCity,
-          hasIr: editForm.hasIr,
-        };
-
-        return {
-          ...updated,
-          ...calculateNetValues(updated),
-        };
+    const updatedEntry: BillingEntry = {
+      ...editingEntry,
+      invoicedValue: editForm.invoicedValue,
+      invoiceNumber: editForm.invoiceNumber,
+      invoiceDate: editForm.invoiceDate,
+      invoiceStatus: editForm.invoiceStatus,
+      paymentStatus: editForm.paymentStatus,
+      paymentDate: editForm.paymentDate,
+      hasIss: editForm.hasIss,
+      outsideCity: editForm.outsideCity,
+      hasIr: editForm.hasIr,
+      ...calculateNetValues({
+        ...editingEntry,
+        invoicedValue: editForm.invoicedValue,
+        invoiceNumber: editForm.invoiceNumber,
+        invoiceDate: editForm.invoiceDate,
+        invoiceStatus: editForm.invoiceStatus,
+        paymentStatus: editForm.paymentStatus,
+        paymentDate: editForm.paymentDate,
+        hasIss: editForm.hasIss,
+        outsideCity: editForm.outsideCity,
+        hasIr: editForm.hasIr,
       }),
-    );
+    };
+
+    onBillingEntriesChange((prev) => {
+      const targetKey = getEntryKey(updatedEntry);
+      const exists = prev.some((entry) => getEntryKey(entry) === targetKey);
+
+      if (exists) {
+        return prev.map((entry) =>
+          getEntryKey(entry) === targetKey ? updatedEntry : entry,
+        );
+      }
+
+      return [...prev, updatedEntry];
+    });
 
     closeEditModal();
   }
@@ -285,7 +411,7 @@ export default function BillingManagement({
               Faturamento - {companyName}
             </h2>
             <p className="text-sm text-slate-500 mt-1">
-              Lance NF, competência, pagamento e acompanhe o faturamento operacional da empresa.
+              A competência selecionada mostra automaticamente os itens marcados como faturando no contrato.
             </p>
           </div>
 
@@ -372,7 +498,16 @@ export default function BillingManagement({
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(220px,1.3fr)_minmax(200px,1fr)_minmax(220px,1fr)_auto] gap-3 items-center">
+        <div className="grid grid-cols-1 xl:grid-cols-[170px_minmax(220px,1.3fr)_minmax(200px,1fr)_minmax(220px,1fr)_auto] gap-3 items-center">
+          <div>
+            <input
+              type="month"
+              className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white"
+              value={competenceToInput(competence)}
+              onChange={(e) => setCompetence(inputToCompetence(e.target.value))}
+            />
+          </div>
+
           <div className="relative">
             <Search
               size={18}
@@ -380,7 +515,7 @@ export default function BillingManagement({
             />
             <input
               className="w-full border border-slate-300 rounded-xl pl-10 pr-3 py-2.5 text-sm"
-              placeholder="Buscar contrato, cliente, órgão ou NF"
+              placeholder="Buscar contrato, cliente, órgão, item ou NF"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -442,115 +577,69 @@ export default function BillingManagement({
           <h3 className="text-lg font-semibold text-slate-900">
             Lançamentos de faturamento
           </h3>
-          <div className="text-sm text-slate-500">Modo visual ativo para testes</div>
+          <div className="text-sm text-slate-500">
+            Competência ativa: {competence}
+          </div>
         </div>
 
         {filteredEntries.length === 0 ? (
           <div className="p-6 text-sm text-slate-500">
-            Nenhum lançamento encontrado com os filtros informados.
+            Nenhum item marcado como faturando foi encontrado para a competência selecionada.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Contrato
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Cliente
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Órgão
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Ref.
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Parcela
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Bruto
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Líquido
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    NF
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Emissão
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Tributos
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Status NF
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Status Pgto
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Pagamento
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                    Ações
-                  </th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Contrato</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Cliente</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Órgão</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Item</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Ref.</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Parcela</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Bruto</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Líquido</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">NF</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Emissão</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Tributos</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Status NF</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Status Pgto</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Pagamento</th>
+                  <th className="text-left px-4 py-3 font-semibold text-slate-700">Ações</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredEntries.map((entry) => (
-                  <tr key={entry.id} className="border-t border-slate-200 align-top">
+                  <tr key={`${entry.id}-${entry.referenceMonth}-${entry.itemDescription || ""}`} className="border-t border-slate-200 align-top">
                     <td className="px-4 py-3 text-slate-700">{entry.contractNumber}</td>
                     <td className="px-4 py-3 text-slate-700">{entry.clientName}</td>
                     <td className="px-4 py-3 text-slate-700">{entry.groupName}</td>
+                    <td className="px-4 py-3 text-slate-700">{entry.itemDescription || "-"}</td>
                     <td className="px-4 py-3 text-slate-700">{entry.referenceMonth}</td>
                     <td className="px-4 py-3 text-slate-700">{entry.installmentNumber}</td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {formatMoney(entry.invoicedValue || entry.expectedValue)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 font-semibold">
-                      {formatMoney(entry.netValue)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {entry.invoiceNumber || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {formatDateBR(entry.invoiceDate)}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{formatMoney(entry.invoicedValue || entry.expectedValue)}</td>
+                    <td className="px-4 py-3 text-slate-700 font-semibold">{formatMoney(entry.netValue)}</td>
+                    <td className="px-4 py-3 text-slate-700">{entry.invoiceNumber || "-"}</td>
+                    <td className="px-4 py-3 text-slate-700">{formatDateBR(entry.invoiceDate)}</td>
                     <td className="px-4 py-3">
                       <div className="text-xs text-slate-600 space-y-1 min-w-[140px]">
                         <div>ISS: {formatMoney(entry.issValue)}</div>
                         <div>IR: {formatMoney(entry.irValue)}</div>
-                        <div>
-                          {entry.outsideCity
-                            ? "Serviço fora do município"
-                            : "Serviço local"}
-                        </div>
+                        <div>{entry.outsideCity ? "Serviço fora do município" : "Serviço local"}</div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getBadgeClass(
-                          entry.invoiceStatus,
-                        )}`}
-                      >
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getBadgeClass(entry.invoiceStatus)}`}>
                         {entry.invoiceStatus}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getBadgeClass(
-                          entry.paymentStatus,
-                        )}`}
-                      >
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getBadgeClass(entry.paymentStatus)}`}>
                         {entry.paymentStatus}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {formatDateBR(entry.paymentDate)}
-                    </td>
+                    <td className="px-4 py-3 text-slate-700">{formatDateBR(entry.paymentDate)}</td>
                     <td className="px-4 py-3">
                       <button
                         type="button"
@@ -574,11 +663,10 @@ export default function BillingManagement({
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl my-8">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">
-                  Editar faturamento
-                </h3>
+                <h3 className="text-xl font-bold text-slate-900">Editar faturamento</h3>
                 <p className="text-sm text-slate-500 mt-1">
                   {editingEntry.contractNumber} • {editingEntry.clientName} • {editingEntry.groupName}
+                  {editingEntry.itemDescription ? ` • ${editingEntry.itemDescription}` : ""}
                 </p>
               </div>
 
@@ -594,58 +682,41 @@ export default function BillingManagement({
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Valor bruto
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Valor bruto</label>
                   <input
                     className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm"
                     value={editForm.invoicedValue}
                     onChange={(e) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        invoicedValue: e.target.value,
-                      }))
+                      setEditForm((prev) => ({ ...prev, invoicedValue: e.target.value }))
                     }
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Número da NF
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Número da NF</label>
                   <input
                     className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm"
                     value={editForm.invoiceNumber}
                     onChange={(e) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        invoiceNumber: e.target.value,
-                      }))
+                      setEditForm((prev) => ({ ...prev, invoiceNumber: e.target.value }))
                     }
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Data de emissão
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Data de emissão</label>
                   <input
                     type="date"
                     className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm"
                     value={editForm.invoiceDate}
                     onChange={(e) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        invoiceDate: e.target.value,
-                      }))
+                      setEditForm((prev) => ({ ...prev, invoiceDate: e.target.value }))
                     }
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Status da NF
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Status da NF</label>
                   <select
                     className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white"
                     value={editForm.invoiceStatus}
@@ -663,9 +734,7 @@ export default function BillingManagement({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Status do pagamento
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Status do pagamento</label>
                   <select
                     className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm bg-white"
                     value={editForm.paymentStatus}
@@ -684,27 +753,20 @@ export default function BillingManagement({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Data do pagamento
-                  </label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Data do pagamento</label>
                   <input
                     type="date"
                     className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm"
                     value={editForm.paymentDate}
                     onChange={(e) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        paymentDate: e.target.value,
-                      }))
+                      setEditForm((prev) => ({ ...prev, paymentDate: e.target.value }))
                     }
                   />
                 </div>
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-                <h4 className="text-base font-semibold text-slate-900 mb-4">
-                  Tributos
-                </h4>
+                <h4 className="text-base font-semibold text-slate-900 mb-4">Tributos</h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -712,10 +774,7 @@ export default function BillingManagement({
                       type="checkbox"
                       checked={editForm.hasIss}
                       onChange={(e) =>
-                        setEditForm((prev) => ({
-                          ...prev,
-                          hasIss: e.target.checked,
-                        }))
+                        setEditForm((prev) => ({ ...prev, hasIss: e.target.checked }))
                       }
                     />
                     Descontar ISS 5%
@@ -726,10 +785,7 @@ export default function BillingManagement({
                       type="checkbox"
                       checked={editForm.outsideCity}
                       onChange={(e) =>
-                        setEditForm((prev) => ({
-                          ...prev,
-                          outsideCity: e.target.checked,
-                        }))
+                        setEditForm((prev) => ({ ...prev, outsideCity: e.target.checked }))
                       }
                     />
                     Serviço fora do município
@@ -740,10 +796,7 @@ export default function BillingManagement({
                       type="checkbox"
                       checked={editForm.hasIr}
                       onChange={(e) =>
-                        setEditForm((prev) => ({
-                          ...prev,
-                          hasIr: e.target.checked,
-                        }))
+                        setEditForm((prev) => ({ ...prev, hasIr: e.target.checked }))
                       }
                     />
                     Descontar IR 4,8%
@@ -753,23 +806,17 @@ export default function BillingManagement({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
                   <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-sm text-slate-500">ISS</p>
-                    <p className="text-xl font-bold text-slate-900 mt-2">
-                      {formatMoney(editPreview?.issValue)}
-                    </p>
+                    <p className="text-xl font-bold text-slate-900 mt-2">{formatMoney(editPreview?.issValue)}</p>
                   </div>
 
                   <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-sm text-slate-500">IR</p>
-                    <p className="text-xl font-bold text-slate-900 mt-2">
-                      {formatMoney(editPreview?.irValue)}
-                    </p>
+                    <p className="text-xl font-bold text-slate-900 mt-2">{formatMoney(editPreview?.irValue)}</p>
                   </div>
 
                   <div className="bg-white rounded-xl border border-slate-200 p-4">
                     <p className="text-sm text-slate-500">Valor líquido</p>
-                    <p className="text-xl font-bold text-slate-900 mt-2">
-                      {formatMoney(editPreview?.netValue)}
-                    </p>
+                    <p className="text-xl font-bold text-slate-900 mt-2">{formatMoney(editPreview?.netValue)}</p>
                   </div>
                 </div>
               </div>
