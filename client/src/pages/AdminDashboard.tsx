@@ -1,24 +1,31 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  LayoutDashboard,
   Users,
   Calendar,
-  FileText,
+  Home,
   LogOut,
-  CheckCircle,
-  Clock3,
-  AlertTriangle,
+  FileText,
   ChevronDown,
   ChevronRight,
-  ReceiptText,
   Building2,
+  ReceiptText,
 } from "lucide-react";
+import { Button } from "../components/Button";
 import EmployeeManagement from "../components/EmployeeManagement";
 import VacationManagement from "../components/VacationManagement";
 import ContractManagement from "../components/ContractManagement";
 import BillingManagement from "../components/BillingManagement";
 
 export type CompanyName = "Conta Soluções" | "Conta Pública" | "Idel Soluções";
+export type BillingInvoiceStatus =
+  | "Pendente de emissão"
+  | "Emitida"
+  | "Cancelada";
+export type BillingPaymentStatus =
+  | "Pendente"
+  | "Pago"
+  | "Pago em atraso"
+  | "Inadimplente";
 
 export type ContractCurrentTerm = {
   termType?: string;
@@ -78,9 +85,6 @@ export type Contract = {
   terms?: ContractTerm[];
 };
 
-export type BillingInvoiceStatus = "Pendente de emissão" | "Emitida" | "Cancelada";
-export type BillingPaymentStatus = "Pendente" | "Pago" | "Pago em atraso" | "Inadimplente";
-
 export type BillingEntry = {
   id: number;
   companyName: CompanyName;
@@ -88,12 +92,16 @@ export type BillingEntry = {
   contractNumber: string;
   clientName: string;
   groupName: string;
-  installmentNumber: number;
   referenceMonth: string;
+  installmentNumber: number;
   expectedValue: string;
   invoiceNumber: string;
   invoiceDate: string;
   invoicedValue: string;
+  invoiceStatus: BillingInvoiceStatus;
+  paymentStatus: BillingPaymentStatus;
+  paymentDate: string;
+  notes?: string;
   grossValue?: string;
   netValue?: string;
   hasIss?: boolean;
@@ -103,49 +111,10 @@ export type BillingEntry = {
   hasIr?: boolean;
   irRate?: string;
   irValue?: string;
-  invoiceStatus: BillingInvoiceStatus;
-  paymentStatus: BillingPaymentStatus;
-  paymentDate: string;
-  notes?: string;
 };
 
-type Employee = {
-  id: number;
-  fullName: string;
-  cpf: string;
-  email: string;
-  phone: string;
-  jobTitle: string;
-  department: string;
-  admissionDate: string;
-  status: "Ativo" | "Inativo";
-  notes: string;
-};
-
-type VacationPeriod = {
-  id: number;
-  employeeId: number;
-  periodNumber: number;
-  start: string;
-  end: string;
-  totalDays: number;
-  grantedUntil: string;
-};
-
-type VacationRecord = {
-  id: number;
-  employeeId: number;
-  periodId: number;
-  startDate: string;
-  endDate: string;
-  vacationDays: number;
-  bonusDays: number;
-  status: "Programado" | "Aprovada" | "Rejeitada" | "Pendente";
-  notes: string;
-};
-
-type Section =
-  | "dashboard"
+type ActiveTab =
+  | "home"
   | "employees"
   | "vacations"
   | "contracts-conta"
@@ -155,7 +124,7 @@ type Section =
   | "billing-publica"
   | "billing-idel";
 
-const initialContracts: Contract[] = [
+const contractsMock: Contract[] = [
   {
     id: 1,
     companyName: "Conta Soluções",
@@ -196,22 +165,54 @@ const initialContracts: Contract[] = [
         id: 1,
         name: "Prefeitura Municipal",
         items: [
-          { id: 1, description: "Sistema de Contabilidade", quantity: 12, unitValue: "300.00", totalValue: "3600.00" },
-          { id: 2, description: "Sistema de Tesouraria", quantity: 12, unitValue: "200.00", totalValue: "2400.00" },
+          {
+            id: 1,
+            description: "Sistema de Contabilidade",
+            quantity: 12,
+            unitValue: "300.00",
+            totalValue: "3600.00",
+          },
+          {
+            id: 2,
+            description: "Sistema de Tesouraria",
+            quantity: 12,
+            unitValue: "200.00",
+            totalValue: "2400.00",
+          },
         ],
       },
       {
         id: 2,
         name: "Fundo Municipal de Saúde",
         items: [
-          { id: 1, description: "Sistema de Contabilidade", quantity: 12, unitValue: "120.00", totalValue: "1440.00" },
-          { id: 2, description: "Sistema de Pessoal", quantity: 12, unitValue: "95.00", totalValue: "1140.00" },
+          {
+            id: 1,
+            description: "Sistema de Contabilidade",
+            quantity: 12,
+            unitValue: "120.00",
+            totalValue: "1440.00",
+          },
+          {
+            id: 2,
+            description: "Sistema de Pessoal",
+            quantity: 12,
+            unitValue: "95.00",
+            totalValue: "1140.00",
+          },
         ],
       },
       {
         id: 3,
         name: "Câmara Municipal",
-        items: [{ id: 1, description: "Portal da Transparência", quantity: 12, unitValue: "275.00", totalValue: "3300.00" }],
+        items: [
+          {
+            id: 1,
+            description: "Portal da Transparência",
+            quantity: 12,
+            unitValue: "275.00",
+            totalValue: "3300.00",
+          },
+        ],
       },
     ],
     groups: [
@@ -219,22 +220,54 @@ const initialContracts: Contract[] = [
         id: 1,
         name: "Prefeitura Municipal",
         items: [
-          { id: 1, description: "Sistema de Contabilidade", quantity: 12, unitValue: "315.00", totalValue: "3780.00" },
-          { id: 2, description: "Sistema de Tesouraria", quantity: 12, unitValue: "210.00", totalValue: "2520.00" },
+          {
+            id: 1,
+            description: "Sistema de Contabilidade",
+            quantity: 12,
+            unitValue: "315.00",
+            totalValue: "3780.00",
+          },
+          {
+            id: 2,
+            description: "Sistema de Tesouraria",
+            quantity: 12,
+            unitValue: "210.00",
+            totalValue: "2520.00",
+          },
         ],
       },
       {
         id: 2,
         name: "Fundo Municipal de Saúde",
         items: [
-          { id: 1, description: "Sistema de Contabilidade", quantity: 12, unitValue: "126.00", totalValue: "1512.00" },
-          { id: 2, description: "Sistema de Pessoal", quantity: 12, unitValue: "99.75", totalValue: "1197.00" },
+          {
+            id: 1,
+            description: "Sistema de Contabilidade",
+            quantity: 12,
+            unitValue: "126.00",
+            totalValue: "1512.00",
+          },
+          {
+            id: 2,
+            description: "Sistema de Pessoal",
+            quantity: 12,
+            unitValue: "99.75",
+            totalValue: "1197.00",
+          },
         ],
       },
       {
         id: 3,
         name: "Câmara Municipal",
-        items: [{ id: 1, description: "Portal da Transparência", quantity: 12, unitValue: "288.75", totalValue: "3465.00" }],
+        items: [
+          {
+            id: 1,
+            description: "Portal da Transparência",
+            quantity: 12,
+            unitValue: "288.75",
+            totalValue: "3465.00",
+          },
+        ],
       },
     ],
     terms: [
@@ -304,12 +337,60 @@ const initialContracts: Contract[] = [
       reajustPercent: "0.00",
     },
     initialGroups: [
-      { id: 1, name: "Prefeitura Municipal", items: [{ id: 1, description: "Assessoria Administrativa", quantity: 12, unitValue: "500.00", totalValue: "6000.00" }] },
-      { id: 2, name: "Câmara Municipal", items: [{ id: 1, description: "Assessoria Legislativa", quantity: 12, unitValue: "300.00", totalValue: "3600.00" }] },
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Administrativa",
+            quantity: 12,
+            unitValue: "500.00",
+            totalValue: "6000.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Câmara Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Legislativa",
+            quantity: 12,
+            unitValue: "300.00",
+            totalValue: "3600.00",
+          },
+        ],
+      },
     ],
     groups: [
-      { id: 1, name: "Prefeitura Municipal", items: [{ id: 1, description: "Assessoria Administrativa", quantity: 12, unitValue: "500.00", totalValue: "6000.00" }] },
-      { id: 2, name: "Câmara Municipal", items: [{ id: 1, description: "Assessoria Legislativa", quantity: 12, unitValue: "300.00", totalValue: "3600.00" }] },
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Administrativa",
+            quantity: 12,
+            unitValue: "500.00",
+            totalValue: "6000.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Câmara Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Legislativa",
+            quantity: 12,
+            unitValue: "300.00",
+            totalValue: "3600.00",
+          },
+        ],
+      },
     ],
     terms: [
       {
@@ -364,12 +445,60 @@ const initialContracts: Contract[] = [
       reajustPercent: "5.00",
     },
     initialGroups: [
-      { id: 1, name: "Prefeitura Municipal", items: [{ id: 1, description: "Assessoria Contábil", quantity: 12, unitValue: "400.00", totalValue: "4800.00" }] },
-      { id: 2, name: "Fundo Municipal de Saúde", items: [{ id: 1, description: "Assessoria em Prestação de Contas", quantity: 12, unitValue: "300.00", totalValue: "3600.00" }] },
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Contábil",
+            quantity: 12,
+            unitValue: "400.00",
+            totalValue: "4800.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Fundo Municipal de Saúde",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria em Prestação de Contas",
+            quantity: 12,
+            unitValue: "300.00",
+            totalValue: "3600.00",
+          },
+        ],
+      },
     ],
     groups: [
-      { id: 1, name: "Prefeitura Municipal", items: [{ id: 1, description: "Assessoria Contábil", quantity: 12, unitValue: "420.00", totalValue: "5040.00" }] },
-      { id: 2, name: "Fundo Municipal de Saúde", items: [{ id: 1, description: "Assessoria em Prestação de Contas", quantity: 12, unitValue: "315.00", totalValue: "3780.00" }] },
+      {
+        id: 1,
+        name: "Prefeitura Municipal",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria Contábil",
+            quantity: 12,
+            unitValue: "420.00",
+            totalValue: "5040.00",
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: "Fundo Municipal de Saúde",
+        items: [
+          {
+            id: 1,
+            description: "Assessoria em Prestação de Contas",
+            quantity: 12,
+            unitValue: "315.00",
+            totalValue: "3780.00",
+          },
+        ],
+      },
     ],
     terms: [
       {
@@ -404,7 +533,7 @@ const initialContracts: Contract[] = [
   },
 ];
 
-const initialBillingEntries: BillingEntry[] = [
+const billingEntriesMock: BillingEntry[] = [
   {
     id: 1,
     companyName: "Conta Soluções",
@@ -412,8 +541,8 @@ const initialBillingEntries: BillingEntry[] = [
     contractNumber: "008/2026",
     clientName: "Município de Areal",
     groupName: "Prefeitura Municipal",
-    installmentNumber: 1,
     referenceMonth: "01/2026",
+    installmentNumber: 1,
     expectedValue: "6300.00",
     invoiceNumber: "1001",
     invoiceDate: "2026-01-05",
@@ -421,6 +550,8 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Pago",
     paymentDate: "2026-01-18",
+    grossValue: "6300.00",
+    netValue: "5706.60",
     hasIss: true,
     issRate: "5",
     issValue: "315.00",
@@ -428,9 +559,6 @@ const initialBillingEntries: BillingEntry[] = [
     hasIr: true,
     irRate: "4.8",
     irValue: "302.40",
-    grossValue: "6300.00",
-    netValue: "5682.60",
-    notes: "Pagamento dentro do prazo.",
   },
   {
     id: 2,
@@ -439,8 +567,8 @@ const initialBillingEntries: BillingEntry[] = [
     contractNumber: "008/2026",
     clientName: "Município de Areal",
     groupName: "Fundo Municipal de Saúde",
-    installmentNumber: 1,
     referenceMonth: "01/2026",
+    installmentNumber: 1,
     expectedValue: "2709.00",
     invoiceNumber: "1002",
     invoiceDate: "2026-01-05",
@@ -448,6 +576,8 @@ const initialBillingEntries: BillingEntry[] = [
     invoiceStatus: "Emitida",
     paymentStatus: "Pendente",
     paymentDate: "",
+    grossValue: "2709.00",
+    netValue: "2453.78",
     hasIss: true,
     issRate: "5",
     issValue: "135.45",
@@ -455,9 +585,6 @@ const initialBillingEntries: BillingEntry[] = [
     hasIr: true,
     irRate: "4.8",
     irValue: "130.03",
-    grossValue: "2709.00",
-    netValue: "2443.52",
-    notes: "Aguardando pagamento.",
   },
   {
     id: 3,
@@ -466,15 +593,17 @@ const initialBillingEntries: BillingEntry[] = [
     contractNumber: "008/2026",
     clientName: "Município de Areal",
     groupName: "Câmara Municipal",
-    installmentNumber: 1,
     referenceMonth: "01/2026",
+    installmentNumber: 1,
     expectedValue: "3465.00",
     invoiceNumber: "",
     invoiceDate: "",
-    invoicedValue: "",
+    invoicedValue: "3465.00",
     invoiceStatus: "Pendente de emissão",
     paymentStatus: "Pendente",
     paymentDate: "",
+    grossValue: "3465.00",
+    netValue: "3138.29",
     hasIss: true,
     issRate: "5",
     issValue: "173.25",
@@ -482,9 +611,6 @@ const initialBillingEntries: BillingEntry[] = [
     hasIr: true,
     irRate: "4.8",
     irValue: "166.32",
-    grossValue: "3465.00",
-    netValue: "3125.43",
-    notes: "NF ainda não emitida.",
   },
   {
     id: 4,
@@ -493,25 +619,24 @@ const initialBillingEntries: BillingEntry[] = [
     contractNumber: "014/2026",
     clientName: "Município de Carmo",
     groupName: "Prefeitura Municipal",
+    referenceMonth: "02/2026",
     installmentNumber: 1,
-    referenceMonth: "03/2026",
     expectedValue: "6000.00",
-    invoiceNumber: "2101",
-    invoiceDate: "2026-03-04",
+    invoiceNumber: "2201",
+    invoiceDate: "2026-02-20",
     invoicedValue: "6000.00",
     invoiceStatus: "Emitida",
-    paymentStatus: "Pago em atraso",
-    paymentDate: "2026-04-12",
+    paymentStatus: "Pago",
+    paymentDate: "2026-03-05",
+    grossValue: "6000.00",
+    netValue: "5430.00",
     hasIss: true,
     issRate: "5",
     issValue: "300.00",
     outsideCity: false,
     hasIr: true,
     irRate: "4.8",
-    irValue: "288.00",
-    grossValue: "6000.00",
-    netValue: "5412.00",
-    notes: "Pagamento recebido após vencimento.",
+    irValue: "270.00",
   },
   {
     id: 5,
@@ -520,25 +645,24 @@ const initialBillingEntries: BillingEntry[] = [
     contractNumber: "014/2026",
     clientName: "Município de Carmo",
     groupName: "Câmara Municipal",
+    referenceMonth: "02/2026",
     installmentNumber: 1,
-    referenceMonth: "03/2026",
     expectedValue: "3600.00",
-    invoiceNumber: "2102",
-    invoiceDate: "2026-03-04",
+    invoiceNumber: "2202",
+    invoiceDate: "2026-02-20",
     invoicedValue: "3600.00",
     invoiceStatus: "Emitida",
-    paymentStatus: "Pendente",
-    paymentDate: "",
+    paymentStatus: "Pago em atraso",
+    paymentDate: "2026-04-10",
+    grossValue: "3600.00",
+    netValue: "3258.00",
     hasIss: true,
     issRate: "5",
     issValue: "180.00",
     outsideCity: false,
     hasIr: true,
     irRate: "4.8",
-    irValue: "172.80",
-    grossValue: "3600.00",
-    netValue: "3247.20",
-    notes: "Sem baixa até o momento.",
+    irValue: "162.00",
   },
   {
     id: 6,
@@ -547,15 +671,17 @@ const initialBillingEntries: BillingEntry[] = [
     contractNumber: "021/2025",
     clientName: "Município de Trajano de Moraes",
     groupName: "Prefeitura Municipal",
-    installmentNumber: 8,
-    referenceMonth: "08/2025",
+    referenceMonth: "06/2025",
+    installmentNumber: 6,
     expectedValue: "5040.00",
-    invoiceNumber: "3308",
-    invoiceDate: "2025-08-05",
+    invoiceNumber: "3301",
+    invoiceDate: "2025-06-08",
     invoicedValue: "5040.00",
     invoiceStatus: "Emitida",
-    paymentStatus: "Pago",
-    paymentDate: "2025-08-20",
+    paymentStatus: "Inadimplente",
+    paymentDate: "",
+    grossValue: "5040.00",
+    netValue: "4563.22",
     hasIss: true,
     issRate: "5",
     issValue: "252.00",
@@ -563,9 +689,6 @@ const initialBillingEntries: BillingEntry[] = [
     hasIr: true,
     irRate: "4.8",
     irValue: "241.92",
-    grossValue: "5040.00",
-    netValue: "4546.08",
-    notes: "Competência quitada.",
   },
   {
     id: 7,
@@ -574,15 +697,17 @@ const initialBillingEntries: BillingEntry[] = [
     contractNumber: "021/2025",
     clientName: "Município de Trajano de Moraes",
     groupName: "Fundo Municipal de Saúde",
-    installmentNumber: 8,
-    referenceMonth: "08/2025",
+    referenceMonth: "06/2025",
+    installmentNumber: 6,
     expectedValue: "3780.00",
-    invoiceNumber: "3309",
-    invoiceDate: "2025-08-05",
+    invoiceNumber: "3302",
+    invoiceDate: "2025-06-08",
     invoicedValue: "3780.00",
     invoiceStatus: "Emitida",
-    paymentStatus: "Inadimplente",
+    paymentStatus: "Pendente",
     paymentDate: "",
+    grossValue: "3780.00",
+    netValue: "3422.52",
     hasIss: true,
     issRate: "5",
     issValue: "189.00",
@@ -590,248 +715,216 @@ const initialBillingEntries: BillingEntry[] = [
     hasIr: true,
     irRate: "4.8",
     irValue: "181.44",
-    grossValue: "3780.00",
-    netValue: "3409.56",
-    notes: "Cliente sem pagamento até hoje.",
   },
 ];
 
 export default function AdminDashboard() {
-  const [activeSection, setActiveSection] = useState<Section>("dashboard");
-  const [contractsMenuOpen, setContractsMenuOpen] = useState(true);
-  const [billingMenuOpen, setBillingMenuOpen] = useState(true);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
-  const [vacations, setVacations] = useState<VacationRecord[]>([]);
-  const [contracts, setContracts] = useState<Contract[]>(initialContracts);
-  const [billingEntries, setBillingEntries] = useState<BillingEntry[]>(initialBillingEntries);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("home");
+  const [contractsMenuOpen, setContractsMenuOpen] = useState(false);
+  const [billingMenuOpen, setBillingMenuOpen] = useState(false);
+  const [contracts, setContracts] = useState<Contract[]>(contractsMock);
+  const [billingEntries, setBillingEntries] =
+    useState<BillingEntry[]>(billingEntriesMock);
 
-  const stats = useMemo(() => {
-    const today = new Date();
-    const approvedCount = vacations.filter((vacation) => vacation.status === "Aprovada").length;
-    const scheduledCount = vacations.filter((vacation) => vacation.status === "Programado").length;
-    const pendingCount = vacations.filter((vacation) => vacation.status === "Pendente").length;
-    const expiringCount = vacationPeriods.filter((period) => {
-      const grantedUntil = new Date(period.grantedUntil);
-      const diffInMs = grantedUntil.getTime() - today.getTime();
-      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-      return diffInDays >= 0 && diffInDays <= 60;
-    }).length;
-
-    return {
-      employees: employees.length,
-      approved: approvedCount,
-      scheduled: scheduledCount,
-      expiring: expiringCount,
-      pending: pendingCount,
-    };
-  }, [employees, vacationPeriods, vacations]);
-
-  const currentCompany: CompanyName | null =
-    activeSection === "contracts-conta" || activeSection === "billing-conta"
+  const currentContractsCompany =
+    activeTab === "contracts-conta"
       ? "Conta Soluções"
-      : activeSection === "contracts-publica" || activeSection === "billing-publica"
+      : activeTab === "contracts-publica"
         ? "Conta Pública"
-        : activeSection === "contracts-idel" || activeSection === "billing-idel"
+        : activeTab === "contracts-idel"
           ? "Idel Soluções"
           : null;
 
+  const currentBillingCompany =
+    activeTab === "billing-conta"
+      ? "Conta Soluções"
+      : activeTab === "billing-publica"
+        ? "Conta Pública"
+        : activeTab === "billing-idel"
+          ? "Idel Soluções"
+          : null;
+
+  function menuButtonClass(isActive: boolean) {
+    return `w-full flex items-center gap-3 rounded-2xl transition text-left ${
+      isActive
+        ? "bg-blue-600 text-white shadow-sm"
+        : "text-white hover:bg-white/10"
+    } px-4 py-3.5 text-base lg:text-lg`;
+  }
+
+  function submenuButtonClass(isActive: boolean) {
+    return `w-full flex items-center gap-3 rounded-xl transition text-left ${
+      isActive
+        ? "bg-blue-600 text-white shadow-sm"
+        : "text-slate-200 hover:bg-white/10"
+    } px-4 py-3 text-sm lg:text-base`;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      <aside className="w-72 bg-[#06122b] text-white flex flex-col">
-        <div className="px-7 py-8">
-          <h1 className="text-4xl font-bold">Admin</h1>
+    <div className="min-h-screen bg-slate-100 flex">
+      <aside className="w-[250px] lg:w-[280px] xl:w-[300px] bg-[#031633] text-white shadow-xl flex flex-col min-h-screen">
+        <div className="px-5 lg:px-6 pt-6 lg:pt-7 pb-5">
+          <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Admin</h1>
         </div>
 
-        <nav className="px-4 flex-1 space-y-3 overflow-y-auto pb-6">
-          <button
-            onClick={() => setActiveSection("dashboard")}
-            className={`w-full flex items-center gap-3 rounded-xl px-5 py-4 text-left text-2xl transition ${
-              activeSection === "dashboard" ? "bg-blue-600 text-white" : "text-white hover:bg-white/10"
-            }`}
-          >
-            <LayoutDashboard size={26} />
-            Dashboard
-          </button>
-
-          <button
-            onClick={() => setActiveSection("employees")}
-            className={`w-full flex items-center gap-3 rounded-xl px-5 py-4 text-left text-2xl transition ${
-              activeSection === "employees" ? "bg-blue-600 text-white" : "text-white hover:bg-white/10"
-            }`}
-          >
-            <Users size={26} />
-            Funcionários
-          </button>
-
-          <button
-            onClick={() => setActiveSection("vacations")}
-            className={`w-full flex items-center gap-3 rounded-xl px-5 py-4 text-left text-2xl transition ${
-              activeSection === "vacations" ? "bg-blue-600 text-white" : "text-white hover:bg-white/10"
-            }`}
-          >
-            <Calendar size={26} />
-            Férias
-          </button>
-
-          <div className="space-y-2">
+        <nav className="flex-1 px-3 lg:px-4 pb-6 overflow-y-auto">
+          <div className="space-y-3">
             <button
-              onClick={() => setContractsMenuOpen((prev) => !prev)}
-              className={`w-full flex items-center justify-between rounded-xl px-5 py-4 text-left text-2xl transition ${
-                activeSection.startsWith("contracts-") ? "bg-white/10 text-white" : "text-white hover:bg-white/10"
-              }`}
+              onClick={() => setActiveTab("home")}
+              className={menuButtonClass(activeTab === "home")}
             >
-              <span className="flex items-center gap-3">
-                <FileText size={26} />
-                Contratos
-              </span>
-              {contractsMenuOpen ? <ChevronDown size={22} /> : <ChevronRight size={22} />}
+              <Home className="w-5 h-5 lg:w-6 lg:h-6 shrink-0" />
+              <span>Dashboard</span>
             </button>
 
-            {contractsMenuOpen && (
-              <div className="ml-5 pl-4 border-l border-white/15 space-y-2">
-                {[
-                  ["contracts-conta", "Conta Soluções"],
-                  ["contracts-publica", "Conta Pública"],
-                  ["contracts-idel", "Idel Soluções"],
-                ].map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveSection(key as Section)}
-                    className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-lg transition ${
-                      activeSection === key ? "bg-blue-600 text-white" : "text-slate-200 hover:bg-white/10"
-                    }`}
-                  >
-                    <Building2 size={18} />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
             <button
-              onClick={() => setBillingMenuOpen((prev) => !prev)}
-              className={`w-full flex items-center justify-between rounded-xl px-5 py-4 text-left text-2xl transition ${
-                activeSection.startsWith("billing-") ? "bg-white/10 text-white" : "text-white hover:bg-white/10"
-              }`}
+              onClick={() => setActiveTab("employees")}
+              className={menuButtonClass(activeTab === "employees")}
             >
-              <span className="flex items-center gap-3">
-                <ReceiptText size={26} />
-                Faturamento
-              </span>
-              {billingMenuOpen ? <ChevronDown size={22} /> : <ChevronRight size={22} />}
+              <Users className="w-5 h-5 lg:w-6 lg:h-6 shrink-0" />
+              <span>Funcionários</span>
             </button>
 
-            {billingMenuOpen && (
-              <div className="ml-5 pl-4 border-l border-white/15 space-y-2">
-                {[
-                  ["billing-conta", "Conta Soluções"],
-                  ["billing-publica", "Conta Pública"],
-                  ["billing-idel", "Idel Soluções"],
-                ].map(([key, label]) => (
+            <button
+              onClick={() => setActiveTab("vacations")}
+              className={menuButtonClass(activeTab === "vacations")}
+            >
+              <Calendar className="w-5 h-5 lg:w-6 lg:h-6 shrink-0" />
+              <span>Férias</span>
+            </button>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => setContractsMenuOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between rounded-2xl transition text-left px-4 py-3.5 text-base lg:text-lg ${
+                  activeTab.startsWith("contracts-")
+                    ? "bg-white/14 text-white"
+                    : "text-white hover:bg-white/10"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 lg:w-6 lg:h-6 shrink-0" />
+                  <span>Contratos</span>
+                </span>
+
+                {contractsMenuOpen ? (
+                  <ChevronDown className="w-5 h-5 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 shrink-0" />
+                )}
+              </button>
+
+              {contractsMenuOpen && (
+                <div className="ml-4 pl-4 border-l border-white/10 space-y-2">
                   <button
-                    key={key}
-                    onClick={() => setActiveSection(key as Section)}
-                    className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-lg transition ${
-                      activeSection === key ? "bg-blue-600 text-white" : "text-slate-200 hover:bg-white/10"
-                    }`}
+                    onClick={() => setActiveTab("contracts-conta")}
+                    className={submenuButtonClass(activeTab === "contracts-conta")}
                   >
-                    <Building2 size={18} />
-                    {label}
+                    <Building2 className="w-4 h-4 lg:w-5 lg:h-5 shrink-0" />
+                    <span>Conta Soluções</span>
                   </button>
-                ))}
-              </div>
-            )}
+
+                  <button
+                    onClick={() => setActiveTab("contracts-publica")}
+                    className={submenuButtonClass(activeTab === "contracts-publica")}
+                  >
+                    <Building2 className="w-4 h-4 lg:w-5 lg:h-5 shrink-0" />
+                    <span>Conta Pública</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("contracts-idel")}
+                    className={submenuButtonClass(activeTab === "contracts-idel")}
+                  >
+                    <Building2 className="w-4 h-4 lg:w-5 lg:h-5 shrink-0" />
+                    <span>Idel Soluções</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => setBillingMenuOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between rounded-2xl transition text-left px-4 py-3.5 text-base lg:text-lg ${
+                  activeTab.startsWith("billing-")
+                    ? "bg-white/14 text-white"
+                    : "text-white hover:bg-white/10"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <ReceiptText className="w-5 h-5 lg:w-6 lg:h-6 shrink-0" />
+                  <span>Faturamento</span>
+                </span>
+
+                {billingMenuOpen ? (
+                  <ChevronDown className="w-5 h-5 shrink-0" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 shrink-0" />
+                )}
+              </button>
+
+              {billingMenuOpen && (
+                <div className="ml-4 pl-4 border-l border-white/10 space-y-2">
+                  <button
+                    onClick={() => setActiveTab("billing-conta")}
+                    className={submenuButtonClass(activeTab === "billing-conta")}
+                  >
+                    <Building2 className="w-4 h-4 lg:w-5 lg:h-5 shrink-0" />
+                    <span>Conta Soluções</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("billing-publica")}
+                    className={submenuButtonClass(activeTab === "billing-publica")}
+                  >
+                    <Building2 className="w-4 h-4 lg:w-5 lg:h-5 shrink-0" />
+                    <span>Conta Pública</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("billing-idel")}
+                    className={submenuButtonClass(activeTab === "billing-idel")}
+                  >
+                    <Building2 className="w-4 h-4 lg:w-5 lg:h-5 shrink-0" />
+                    <span>Idel Soluções</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="pt-8">
-            <div className="border-t border-white/20" />
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <Button className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 rounded-xl py-3 text-sm lg:text-base">
+              <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
+              Sair
+            </Button>
           </div>
         </nav>
-
-        <div className="p-6">
-          <button className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl px-5 py-4 text-2xl flex items-center justify-center gap-3 transition">
-            <LogOut size={24} />
-            Sair
-          </button>
-        </div>
       </aside>
 
-      <main className="flex-1 p-9 overflow-x-hidden">
-        {activeSection === "dashboard" && (
-          <div className="space-y-8">
-            <section className="bg-white rounded-2xl shadow-sm p-8">
-              <h2 className="text-5xl font-bold text-slate-900 mb-4">Bem-vindo ao Painel Admin</h2>
-              <p className="text-3xl text-slate-600">Acompanhe os principais indicadores de funcionários, férias, contratos e faturamento.</p>
-            </section>
-
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-blue-600 flex items-center justify-between">
-                <div>
-                  <p className="text-3xl text-slate-600 mb-3">Funcionários</p>
-                  <p className="text-6xl font-bold text-slate-900">{stats.employees}</p>
-                </div>
-                <Users size={52} className="text-blue-600" />
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-green-600 flex items-center justify-between">
-                <div>
-                  <p className="text-3xl text-slate-600 mb-3">Concedidas</p>
-                  <p className="text-6xl font-bold text-slate-900">{stats.approved}</p>
-                </div>
-                <CheckCircle size={52} className="text-green-600" />
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-sky-500 flex items-center justify-between">
-                <div>
-                  <p className="text-3xl text-slate-600 mb-3">Programadas</p>
-                  <p className="text-6xl font-bold text-slate-900">{stats.scheduled}</p>
-                </div>
-                <Calendar size={52} className="text-sky-500" />
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-amber-500 flex items-center justify-between">
-                <div>
-                  <p className="text-3xl text-slate-600 mb-3">A vencer</p>
-                  <p className="text-6xl font-bold text-slate-900">{stats.expiring}</p>
-                </div>
-                <Clock3 size={52} className="text-amber-500" />
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm p-8 border-l-4 border-red-600 flex items-center justify-between md:col-span-1">
-                <div>
-                  <p className="text-3xl text-slate-600 mb-3">Pendentes</p>
-                  <p className="text-6xl font-bold text-slate-900">{stats.pending}</p>
-                </div>
-                <AlertTriangle size={52} className="text-red-600" />
-              </div>
-            </section>
+      <main className="flex-1 p-4 md:p-6 lg:p-8 xl:p-10 overflow-x-auto">
+        {activeTab === "home" && (
+          <div className="bg-white rounded-3xl shadow-sm p-6 lg:p-8 border border-slate-200">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+              Bem-vindo ao Painel Admin
+            </h2>
+            <p className="text-slate-600 text-base lg:text-lg">
+              Use o menu lateral para gerenciar funcionários, férias, contratos e faturamento.
+            </p>
           </div>
         )}
 
-        {activeSection === "employees" && <EmployeeManagement onEmployeesChange={setEmployees} />}
-        {activeSection === "vacations" && (
-          <VacationManagement
-            employees={employees}
-            onVacationPeriodsChange={setVacationPeriods}
-            onVacationsChange={setVacations}
-          />
+        {activeTab === "employees" && <EmployeeManagement />}
+        {activeTab === "vacations" && <VacationManagement />}
+
+        {currentContractsCompany && (
+          <ContractManagement companyName={currentContractsCompany} />
         )}
 
-        {currentCompany && activeSection.startsWith("contracts-") && (
-          <ContractManagement
-            companyName={currentCompany}
-            contracts={contracts}
-            onContractsChange={setContracts}
-            billingEntries={billingEntries}
-          />
-        )}
-
-        {currentCompany && activeSection.startsWith("billing-") && (
+        {currentBillingCompany && (
           <BillingManagement
-            companyName={currentCompany}
+            companyName={currentBillingCompany}
             contracts={contracts}
             billingEntries={billingEntries}
             onBillingEntriesChange={setBillingEntries}
