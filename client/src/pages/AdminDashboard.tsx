@@ -1364,7 +1364,14 @@ export default function AdminDashboard() {
         {activeTab === "employees" && <EmployeeManagement />}
         {activeTab === "vacations" && <VacationManagement />}
 
-        {currentContractsCompany && <ContractManagement />}
+        {currentContractsCompany && (
+          <ContractManagement
+            companyName={currentContractsCompany}
+            contracts={contracts}
+            onContractsChange={setContracts}
+            billingEntries={billingEntries}
+          />
+        )}
 
         {currentBillingCompany && (
           <BillingManagement
