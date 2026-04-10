@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Users,
   Calendar,
@@ -9,6 +9,10 @@ import {
   ChevronRight,
   Building2,
   ReceiptText,
+  Briefcase,
+  Wallet,
+  AlertTriangle,
+  CircleDollarSign,
 } from "lucide-react";
 import { Button } from "../components/Button";
 import EmployeeManagement from "../components/EmployeeManagement";
@@ -718,6 +722,20 @@ const billingEntriesMock: BillingEntry[] = [
   },
 ];
 
+function formatMoney(value?: string | number) {
+  if (value === undefined || value === null || value === "") return "R$ 0,00";
+  const numberValue = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(numberValue)) return String(value);
+  return numberValue.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function summaryCardClass() {
+  return "bg-white rounded-2xl border border-slate-200 shadow-sm p-5";
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("home");
   const [contractsMenuOpen, setContractsMenuOpen] = useState(false);
@@ -743,6 +761,74 @@ export default function AdminDashboard() {
         : activeTab === "billing-idel"
           ? "Idel Soluções"
           : null;
+
+  const dashboardSummary = useMemo(() => {
+    const totalContracts = contracts.length;
+    const activeContracts = contracts.filter((item) => item.status === "Vigente").length;
+    const closedContracts = contracts.filter((item) => item.status === "Encerrado").length;
+
+    const contractsByCompany = {
+      conta: contracts.filter((item) => item.companyName === "Conta Soluções").length,
+      publica: contracts.filter((item) => item.companyName === "Conta Pública").length,
+      idel: contracts.filter((item) => item.companyName === "Idel Soluções").length,
+    };
+
+    const invoicePending = billingEntries.filter(
+      (item) => item.invoiceStatus === "Pendente de emissão",
+    ).length;
+
+    const billingPendingCount = billingEntries.filter(
+      (item) => item.paymentStatus === "Pendente",
+    ).length;
+
+    const billingOverdueCount = billingEntries.filter(
+      (item) => item.paymentStatus === "Inadimplente",
+    ).length;
+
+    const expectedTotal = billingEntries.reduce(
+      (acc, item) => acc + Number(item.expectedValue || 0),
+      0,
+    );
+
+    const invoicedTotal = billingEntries
+      .filter((item) => item.invoiceStatus === "Emitida")
+      .reduce((acc, item) => acc + Number(item.invoicedValue || item.expectedValue || 0), 0);
+
+    const paidTotal = billingEntries
+      .filter(
+        (item) =>
+          item.paymentStatus === "Pago" || item.paymentStatus === "Pago em atraso",
+      )
+      .reduce((acc, item) => acc + Number(item.netValue || item.invoicedValue || 0), 0);
+
+    const pendingTotal = billingEntries
+      .filter((item) => item.paymentStatus === "Pendente")
+      .reduce((acc, item) => acc + Number(item.expectedValue || 0), 0);
+
+    const overdueTotal = billingEntries
+      .filter((item) => item.paymentStatus === "Inadimplente")
+      .reduce((acc, item) => acc + Number(item.expectedValue || 0), 0);
+
+    return {
+      totalContracts,
+      activeContracts,
+      closedContracts,
+      contractsByCompany,
+      invoicePending,
+      billingPendingCount,
+      billingOverdueCount,
+      expectedTotal,
+      invoicedTotal,
+      paidTotal,
+      pendingTotal,
+      overdueTotal,
+      employeesTotal: 0,
+      vacationsGranted: 0,
+      vacationsScheduled: 0,
+      vacationsPending: 0,
+      vacationsToExpire: 0,
+    };
+  }, [contracts, billingEntries]);
 
   function menuButtonClass(isActive: boolean) {
     return `w-full flex items-center gap-3 rounded-2xl transition text-left ${
@@ -905,13 +991,373 @@ export default function AdminDashboard() {
 
       <main className="flex-1 p-4 md:p-6 lg:p-8 xl:p-10 overflow-x-auto">
         {activeTab === "home" && (
-          <div className="bg-white rounded-3xl shadow-sm p-6 lg:p-8 border border-slate-200">
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
-              Bem-vindo ao Painel Admin
-            </h2>
-            <p className="text-slate-600 text-base lg:text-lg">
-              Use o menu lateral para gerenciar funcionários, férias, contratos e faturamento.
-            </p>
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl shadow-sm p-6 lg:p-8 border border-slate-200">
+              <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+                Bem-vindo ao Painel Admin
+              </h2>
+              <p className="text-slate-600 text-base lg:text-lg">
+                Acompanhe rapidamente a situação geral de férias, contratos e faturamento.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+              <div className={summaryCardClass()}>
+                <div className="flex items-center gap-3">
+                  <Users className="w-8 h-8 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-slate-500">Funcionários</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {dashboardSummary.employeesTotal}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={summaryCardClass()}>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-8 h-8 text-amber-600" />
+                  <div>
+                    <p className="text-sm text-slate-500">Férias pendentes</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {dashboardSummary.vacationsPending}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={summaryCardClass()}>
+                <div className="flex items-center gap-3">
+                  <Briefcase className="w-8 h-8 text-indigo-600" />
+                  <div>
+                    <p className="text-sm text-slate-500">Contratos vigentes</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {dashboardSummary.activeContracts}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={summaryCardClass()}>
+                <div className="flex items-center gap-3">
+                  <ReceiptText className="w-8 h-8 text-orange-600" />
+                  <div>
+                    <p className="text-sm text-slate-500">NFs pendentes</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {dashboardSummary.invoicePending}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={summaryCardClass()}>
+                <div className="flex items-center gap-3">
+                  <Wallet className="w-8 h-8 text-green-600" />
+                  <div>
+                    <p className="text-sm text-slate-500">A receber</p>
+                    <p className="text-xl font-bold text-slate-900">
+                      {formatMoney(
+                        dashboardSummary.pendingTotal + dashboardSummary.overdueTotal,
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <Calendar className="w-6 h-6 text-amber-600" />
+                  <h3 className="text-xl font-bold text-slate-900">Resumo de Férias</h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                    <p className="text-sm text-slate-500">Concedidas</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                      {dashboardSummary.vacationsGranted}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                    <p className="text-sm text-slate-500">Programadas</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                      {dashboardSummary.vacationsScheduled}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                    <p className="text-sm text-slate-500">Pendentes</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                      {dashboardSummary.vacationsPending}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                    <p className="text-sm text-slate-500">A vencer</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                      {dashboardSummary.vacationsToExpire}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <FileText className="w-6 h-6 text-indigo-600" />
+                  <h3 className="text-xl font-bold text-slate-900">Resumo de Contratos</h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Total de contratos</span>
+                    <strong className="text-slate-900">{dashboardSummary.totalContracts}</strong>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Vigentes</span>
+                    <strong className="text-slate-900">{dashboardSummary.activeContracts}</strong>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Encerrados</span>
+                    <strong className="text-slate-900">{dashboardSummary.closedContracts}</strong>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-3">Por empresa</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-700">Conta Soluções</span>
+                        <strong className="text-slate-900">
+                          {dashboardSummary.contractsByCompany.conta}
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-700">Conta Pública</span>
+                        <strong className="text-slate-900">
+                          {dashboardSummary.contractsByCompany.publica}
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-700">Idel Soluções</span>
+                        <strong className="text-slate-900">
+                          {dashboardSummary.contractsByCompany.idel}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <ReceiptText className="w-6 h-6 text-green-600" />
+                  <h3 className="text-xl font-bold text-slate-900">Resumo de Faturamento</h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Previsto</span>
+                    <strong className="text-slate-900">
+                      {formatMoney(dashboardSummary.expectedTotal)}
+                    </strong>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Emitido</span>
+                    <strong className="text-slate-900">
+                      {formatMoney(dashboardSummary.invoicedTotal)}
+                    </strong>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Pago</span>
+                    <strong className="text-slate-900">
+                      {formatMoney(dashboardSummary.paidTotal)}
+                    </strong>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Pendente</span>
+                    <strong className="text-slate-900">
+                      {formatMoney(dashboardSummary.pendingTotal)}
+                    </strong>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-600">Inadimplente</span>
+                    <strong className="text-slate-900">
+                      {formatMoney(dashboardSummary.overdueTotal)}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <h3 className="text-xl font-bold text-slate-900">Alertas rápidos</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
+                  <p className="text-sm text-red-700">Inadimplentes</p>
+                  <p className="text-2xl font-bold text-red-900 mt-1">
+                    {dashboardSummary.billingOverdueCount}
+                  </p>
+                  <p className="text-sm text-red-700 mt-2">
+                    Lançamentos com pagamento em atraso ou não recebido.
+                  </p>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                  <p className="text-sm text-amber-700">Pagamentos pendentes</p>
+                  <p className="text-2xl font-bold text-amber-900 mt-1">
+                    {dashboardSummary.billingPendingCount}
+                  </p>
+                  <p className="text-sm text-amber-700 mt-2">
+                    Faturamentos emitidos ou previstos aguardando pagamento.
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                  <p className="text-sm text-blue-700">NFs a emitir</p>
+                  <p className="text-2xl font-bold text-blue-900 mt-1">
+                    {dashboardSummary.invoicePending}
+                  </p>
+                  <p className="text-sm text-blue-700 mt-2">
+                    Lançamentos ainda sem emissão de nota fiscal.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <CircleDollarSign className="w-6 h-6 text-green-600" />
+                  <h3 className="text-xl font-bold text-slate-900">Empresas</h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-700">Conta Soluções</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatMoney(
+                        billingEntries
+                          .filter((item) => item.companyName === "Conta Soluções")
+                          .reduce((acc, item) => acc + Number(item.expectedValue || 0), 0),
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-700">Conta Pública</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatMoney(
+                        billingEntries
+                          .filter((item) => item.companyName === "Conta Pública")
+                          .reduce((acc, item) => acc + Number(item.expectedValue || 0), 0),
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex items-center justify-between">
+                    <span className="text-slate-700">Idel Soluções</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatMoney(
+                        billingEntries
+                          .filter((item) => item.companyName === "Idel Soluções")
+                          .reduce((acc, item) => acc + Number(item.expectedValue || 0), 0),
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <ReceiptText className="w-6 h-6 text-indigo-600" />
+                  <h3 className="text-xl font-bold text-slate-900">Situação financeira</h3>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm text-slate-600 mb-1">
+                      <span>Emitido sobre previsto</span>
+                      <span>
+                        {dashboardSummary.expectedTotal > 0
+                          ? `${(
+                              (dashboardSummary.invoicedTotal /
+                                dashboardSummary.expectedTotal) *
+                              100
+                            ).toFixed(1)}%`
+                          : "0%"}
+                      </span>
+                    </div>
+                    <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 rounded-full"
+                        style={{
+                          width: `${
+                            dashboardSummary.expectedTotal > 0
+                              ? Math.min(
+                                  (dashboardSummary.invoicedTotal /
+                                    dashboardSummary.expectedTotal) *
+                                    100,
+                                  100,
+                                )
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm text-slate-600 mb-1">
+                      <span>Pago sobre emitido</span>
+                      <span>
+                        {dashboardSummary.invoicedTotal > 0
+                          ? `${(
+                              (dashboardSummary.paidTotal /
+                                dashboardSummary.invoicedTotal) *
+                              100
+                            ).toFixed(1)}%`
+                          : "0%"}
+                      </span>
+                    </div>
+                    <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-600 rounded-full"
+                        style={{
+                          width: `${
+                            dashboardSummary.invoicedTotal > 0
+                              ? Math.min(
+                                  (dashboardSummary.paidTotal /
+                                    dashboardSummary.invoicedTotal) *
+                                    100,
+                                  100,
+                                )
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 text-sm text-slate-600">
+                    <p>
+                      O painel mostra um resumo consolidado da operação atual com base
+                      nos contratos e lançamentos de faturamento cadastrados.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
